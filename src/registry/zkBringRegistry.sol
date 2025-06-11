@@ -10,17 +10,10 @@ import {Ownable2Step} from "openzeppelin/access/Ownable2Step.sol";
 contract zkBringRegistry is IzkBringRegistry, Ownable2Step {
     using ECDSA for bytes32;
 
-    struct TLSNVerifierMessage {
-        address registry;
-        uint256 verificationId;
-        bytes32 idHash;
-        uint256 semaphoreIdentityCommitment;
-    }
-
-    ISemaphore immutable public SEMAPHORE;
-
+    ISemaphore public immutable SEMAPHORE;
     address public TLSNVerifier;
     mapping(uint256 verifivationId => uint256 semaphoreGroupId) private _semaphoreGroupIds;
+    mapping(bytes32 nullifier => bool isConsumed) private _nullifierConsumed;
 
     constructor(ISemaphore semaphore_, address TLSNVerifier_) {
         SEMAPHORE = semaphore_;
@@ -32,16 +25,25 @@ contract zkBringRegistry is IzkBringRegistry, Ownable2Step {
         bytes memory signature_
     ) public returns (bool success) {
         uint256 semaphoreGroupId = _semaphoreGroupIds[verifierMessage_.verificationId];
+        bytes32 nullifier = keccak256(
+            abi.encode(
+                verifierMessage_.registry,
+                verifierMessage_.verificationId,
+                verifierMessage_.idHash
+            )
+        );
 
         require(semaphoreGroupId != 0, "Verification doesn't exist");
         require(verifierMessage_.registry == address(this), "Wrong Verifier message");
+        require(!_nullifierConsumed[nullifier], "Nullifier is consumed");
 
-        (address signer, ECDSA.RecoverError err) = keccak256(
+        (address signer,) = keccak256(
             abi.encode(verifierMessage_)
         ).toEthSignedMessageHash().tryRecover(signature_);
 
-        if (err == ECDSA.RecoverError.NoError && signer == TLSNVerifier) {
+        if (signer == TLSNVerifier) {
             SEMAPHORE.addMember(semaphoreGroupId, verifierMessage_.semaphoreIdentityCommitment);
+            _nullifierConsumed[nullifier] = true;
             success = true;
         }
         return success;

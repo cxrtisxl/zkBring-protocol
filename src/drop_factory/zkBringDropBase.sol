@@ -10,13 +10,13 @@ abstract contract zkBringDropBase is Ownable2Step {
     // Drop configuration
     IzkBringRegistry public immutable registry;
     IERC20 public immutable token;
-    uint256 public immutable amount;        // Amount per claim
-    uint256 public immutable maxClaims;     // Maximum number of claims allowed
-    uint256 public immutable expiration;    // Expiration timestamp
+    uint256 public immutable amount; // Amount per claim
+    uint256 public immutable maxClaims; // Maximum number of claims allowed
+    uint256 public immutable expiration; // Expiration timestamp
     IERC20 public immutable BRING_TOKEN;
 
     uint256 public bringStaked;
-    uint256 public claims;                  // Current number of claims
+    uint256 public claims; // Current number of claims
     string public metadataIpfsHash;
     bool public stopped;
 
@@ -72,7 +72,7 @@ abstract contract zkBringDropBase is Ownable2Step {
      * @notice Stop the drop campaign and return all tokens held by the contract to the owner.
      * Can only be called by the owner.
      */
-    function stop() external onlyOwner notStopped {
+    function stop() public onlyOwner notStopped {
         stopped = true;
         uint256 remaining = token.balanceOf(address(this));
         require(
@@ -92,7 +92,7 @@ abstract contract zkBringDropBase is Ownable2Step {
         emit Stopped();
     }
 
-    function updateMetadata(string memory _metadataIpfsHash) external onlyOwner notStopped notExpired {
+    function updateMetadata(string memory _metadataIpfsHash) public onlyOwner notStopped notExpired {
         metadataIpfsHash = _metadataIpfsHash;
         emit MetadataUpdated(_metadataIpfsHash);
     }

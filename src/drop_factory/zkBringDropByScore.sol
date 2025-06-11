@@ -23,7 +23,18 @@ contract zkBringDropByScore is zkBringDropBase {
         uint256 expiration_,
         string memory metadataIpfsHash_,
         IERC20 bringToken_
-    ) zkBringDropBase(registry_, creator_, token_, amount_, maxClaims_, expiration_, metadataIpfsHash_, bringToken_) {
+    )
+        zkBringDropBase(
+            registry_,
+            creator_,
+            token_,
+            amount_,
+            maxClaims_,
+            expiration_,
+            metadataIpfsHash_,
+            bringToken_
+        )
+    {
         scoreThreshold = scoreThreshold_;
     }
 

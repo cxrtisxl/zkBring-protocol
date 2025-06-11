@@ -13,11 +13,7 @@ contract zkBringDropFactory is Ownable2Step {
     address public feeRecipient;
     IERC20 public immutable BRING_TOKEN;
 
-    constructor(
-        uint256 fee_,
-        address feeRecipient_,
-        IERC20 bringToken_
-    ) {
+    constructor(uint256 fee_, address feeRecipient_, IERC20 bringToken_) {
         fee = fee_;
         feeRecipient = feeRecipient_;
         BRING_TOKEN = bringToken_;
@@ -35,7 +31,7 @@ contract zkBringDropFactory is Ownable2Step {
         uint256 maxClaims_,
         uint256 expiration_,
         string memory metadataIpfsHash_
-    ) external returns (address dropAddress) {
+    ) public returns (address dropAddress) {
         uint256 totalDistribution = amount_ * maxClaims_;
         uint256 feeAmount = (totalDistribution * fee) / 10000;
 
@@ -51,13 +47,16 @@ contract zkBringDropFactory is Ownable2Step {
             BRING_TOKEN
         );
         dropAddress = address(drop);
-        _distributeDropToken(
-            token_,
+        _distributeDropToken(token_, dropAddress, totalDistribution, feeAmount);
+        emit DropCreated(
+            msg.sender,
             dropAddress,
-            totalDistribution,
-            feeAmount
+            address(token_),
+            amount_,
+            maxClaims_,
+            expiration_,
+            metadataIpfsHash_
         );
-        emit DropCreated(msg.sender, dropAddress, address(token_), amount_, maxClaims_, expiration_, metadataIpfsHash_);
     }
 
     function _distributeDropToken(

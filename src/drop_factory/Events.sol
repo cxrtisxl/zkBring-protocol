@@ -11,6 +11,7 @@ event DropCreated(
     uint256 expiration,
     string metadataIpfsHash
 );
+
 event FeeUpdated(uint256 newFee);
 event FeeRecipientUpdated(address newFeeRecipient);
 

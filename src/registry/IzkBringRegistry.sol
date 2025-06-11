@@ -10,5 +10,12 @@ interface IzkBringRegistry {
         uint256[8] points;
     }
 
+    struct TLSNVerifierMessage {
+        address registry;
+        uint256 verificationId;
+        bytes32 idHash;
+        uint256 semaphoreIdentityCommitment;
+    }
+
     function validateProof(uint256 verificationId, SemaphoreProof memory proof) external;
 }
