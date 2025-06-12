@@ -18,12 +18,26 @@ contract zkBringRegistry is IzkBringRegistry, Ownable2Step {
     constructor(ISemaphore semaphore_, address TLSNVerifier_) {
         SEMAPHORE = semaphore_;
         TLSNVerifier = TLSNVerifier_;
+        SEMAPHORE.createGroup(); // We create an empty Semaphore group to drop groupId: 0
     }
 
     function joinGroup(
         TLSNVerifierMessage memory verifierMessage_,
         bytes memory signature_
-    ) public returns (bool success) {
+    ) public {
+        bytes32 r; bytes32 s; uint8 v;
+        assembly {
+            r := mload(add(signature_, 0x20))
+            s := mload(add(signature_, 0x40))
+            v := byte(0, mload(add(signature_, 0x60)))
+        }
+        joinGroup(verifierMessage_, v, r, s);
+    }
+
+    function joinGroup(
+        TLSNVerifierMessage memory verifierMessage_,
+        uint8 v, bytes32 r, bytes32 s
+    ) public {
         uint256 semaphoreGroupId = _semaphoreGroupIds[verifierMessage_.verificationId];
         bytes32 nullifier = keccak256(
             abi.encode(
@@ -39,14 +53,12 @@ contract zkBringRegistry is IzkBringRegistry, Ownable2Step {
 
         (address signer,) = keccak256(
             abi.encode(verifierMessage_)
-        ).toEthSignedMessageHash().tryRecover(signature_);
+        ).toEthSignedMessageHash().tryRecover(v, r, s);
 
-        if (signer == TLSNVerifier) {
-            SEMAPHORE.addMember(semaphoreGroupId, verifierMessage_.semaphoreIdentityCommitment);
-            _nullifierConsumed[nullifier] = true;
-            success = true;
-        }
-        return success;
+        require(signer == TLSNVerifier, "Invalid TLSN Verifier signature");
+
+        SEMAPHORE.addMember(semaphoreGroupId, verifierMessage_.semaphoreIdentityCommitment);
+        _nullifierConsumed[nullifier] = true;
     }
 
     function validateProof(
@@ -75,6 +87,8 @@ contract zkBringRegistry is IzkBringRegistry, Ownable2Step {
         _semaphoreGroupIds[verificationId] = SEMAPHORE.createGroup();
         emit VerificationCreated(verificationId);
     }
+
+    // TODO: Suspend verification
 
     function setVerifier(
         address TLSNVerifier_
