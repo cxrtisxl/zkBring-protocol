@@ -10,6 +10,7 @@ import {IzkBringRegistry as IRegistry} from "../src/registry/IzkBringRegistry.so
 import {Test, console} from "forge-std/Test.sol";
 import {zkBringDropFactory} from "../src/drop_factory/zkBringDropFactory.sol";
 import {ECDSA} from "openzeppelin/utils/cryptography/ECDSA.sol";
+import {TestUtils} from "./TestUtils.sol";
 
 struct TLSNVerifier {
     uint256 privateKey;
@@ -32,43 +33,83 @@ contract zkBringTest is Test {
         semaphoreVerifier = new SemaphoreVerifier();
         semaphore = new Semaphore(ISemaphoreVerifier(address(semaphoreVerifier)));
         registry = new zkBringRegistry(ISemaphore(address(semaphore)), tlsnVerifier.addr);
-        registry.newVerification(1);
         // (uint8 v, bytes32 r, bytes32 s) = vm.sign(verifier.privateKey, hash);
     }
 
-    function getCommitment(uint256 commitmentKey) public {
-        string[] memory inputs = new string[](3);
-        inputs[0] = "node";
-        inputs[1] = "semaphore-js/commitment.mjs";
-        inputs[2] = vm.toString(bytes32(commitmentKey));
-        bytes memory res = vm.ffi(inputs);
-        string memory output = abi.decode(res, (string));
-        console.log(output);
-    }
+    // @notice verifies user data, generates commitment and adds it to Registry
+    function verify(
+        address commitmentSender_,
+        uint256 verificationId_,
+        bytes32 idHash_,
+        uint256 semaphoreIdentityCommitment
+    ) public {
+        IRegistry.TLSNVerifierMessage memory verifierMessage = IRegistry.TLSNVerifierMessage({
+            registry: address(registry),
+            verificationId: verificationId_,
+            idHash: idHash_, // Random identity
+            semaphoreIdentityCommitment: semaphoreIdentityCommitment
+        });
 
-    function getProof() public {
-    }
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
+            tlsnVerifier.privateKey,
+            keccak256(abi.encode(verifierMessage)).toEthSignedMessageHash()
+        );
 
-    function testCommitment() public {
-        (, uint256 privateKey) = makeAddrAndKey("someone");
-        getCommitment(privateKey);
+        // Joining group
+        vm.prank(commitmentSender_);
+        registry.joinGroup(verifierMessage, v, r, s);
     }
 
     function testVerification() public {
-        // Here we generate a mock message for Verifier to sign
-        IRegistry.TLSNVerifierMessage memory verifierMessage = IRegistry.TLSNVerifierMessage({
-            registry: address(registry),
-            verificationId: 1,
-            idHash: keccak256("alice"),
-            semaphoreIdentityCommitment: 1
-        });
-        bytes32 TLSNVerifierSignedMessageHash = keccak256(
-            abi.encode(verifierMessage)
-        ).toEthSignedMessageHash();
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(tlsnVerifier.privateKey, TLSNVerifierSignedMessageHash);
+        uint256 verificationId = vm.randomUint();
+        registry.newVerification(verificationId); // Creating a new Verefication
+        verify(
+            vm.randomAddress(), // Calling from a random address (drop contract / DAO voting contract etc.)
+            verificationId,
+            keccak256(vm.randomBytes(32)),
+            TestUtils.semaphoreCommitment(vm.randomUint())
+        );
+    }
 
-        // Joining group
-        vm.prank(makeAddr("cxrtisxl"));
-        registry.joinGroup(verifierMessage, v, r, s);
+    function testValidation() public {
+        uint256 verificationId = vm.randomUint();
+        registry.newVerification(verificationId); // Creating a new Verefication
+
+        uint256 commitmentKey = vm.randomUint();
+        uint256[] memory commitments = new uint256[](1);
+        commitments[0] = TestUtils.semaphoreCommitment(commitmentKey);
+
+        address sender = vm.randomAddress();
+
+        verify(
+            sender, // Calling from a random address (drop contract / DAO voting contract etc.)
+            verificationId,
+            keccak256(vm.randomBytes(32)),
+            commitments[0]
+        );
+
+        uint256 scope = uint256(keccak256(abi.encode(sender, 0)));
+        (
+            uint256 merkleTreeDepth,
+            uint256 merkleTreeRoot,
+            uint256 nullifier,
+            uint256 message,
+            uint256[8] memory points
+        ) = TestUtils.semaphoreProof(
+            commitmentKey,
+            scope,
+            commitments
+        );
+
+        IRegistry.SemaphoreProof memory proof = IRegistry.SemaphoreProof(
+            merkleTreeDepth,
+            merkleTreeRoot,
+            nullifier,
+            message,
+            points
+        );
+
+        vm.prank(sender);
+        registry.validateProof(verificationId, 0, proof);
     }
 }

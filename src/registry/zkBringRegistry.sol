@@ -61,18 +61,22 @@ contract zkBringRegistry is IzkBringRegistry, Ownable2Step {
         _nullifierConsumed[nullifier] = true;
     }
 
+    // @notice Validates Semaphore proof
+    // @dev `context_` parameter here is concatenated with sender address
     function validateProof(
         uint256 verificationId_,
+        uint256 context_,
         SemaphoreProof calldata proof_
     ) public {
         uint256 semaphoreGroupId = _semaphoreGroupIds[verificationId_];
         require(semaphoreGroupId != 0, "Verification doesn't exist");
+
         ISemaphore.SemaphoreProof memory proof = ISemaphore.SemaphoreProof(
             proof_.merkleTreeDepth,
             proof_.merkleTreeRoot,
             proof_.nullifier,
             proof_.message,
-            uint256(keccak256(abi.encode(msg.sender))),
+            uint256(keccak256(abi.encode(msg.sender, context_))),
             proof_.points
         );
         SEMAPHORE.validateProof(semaphoreGroupId, proof);

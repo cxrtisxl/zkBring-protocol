@@ -17,5 +17,5 @@ interface IzkBringRegistry {
         uint256 semaphoreIdentityCommitment;
     }
 
-    function validateProof(uint256 verificationId, SemaphoreProof memory proof) external;
+    function validateProof(uint256 verificationId, uint256 context, SemaphoreProof memory proof) external;
 }

@@ -42,7 +42,7 @@ contract zkBringDropByScore is zkBringDropBase {
         require(proofs.length != scoreThreshold, "Wrong amount of proofs provided");
         require(claims < maxClaims, "All claims exhausted");
         for (uint256 i; i < proofs.length; i++) {
-            registry.validateProof(proofs[i].verificationId, proofs[i].proof);
+            registry.validateProof(proofs[i].verificationId, 0, proofs[i].proof);
         }
         claims++;
         require(
