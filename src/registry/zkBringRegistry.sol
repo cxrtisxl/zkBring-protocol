@@ -13,7 +13,7 @@ contract zkBringRegistry is IzkBringRegistry, Ownable2Step {
     ISemaphore public immutable SEMAPHORE;
     address public TLSNVerifier;
     mapping(uint256 verifivationId => uint256 semaphoreGroupId) private _semaphoreGroupIds;
-    mapping(bytes32 nullifier => bool isConsumed) private _nullifierConsumed;
+    mapping(bytes32 nullifier => bool isConsumed) private _nonceUsed;
 
     constructor(ISemaphore semaphore_, address TLSNVerifier_) {
         SEMAPHORE = semaphore_;
@@ -39,7 +39,7 @@ contract zkBringRegistry is IzkBringRegistry, Ownable2Step {
         uint8 v, bytes32 r, bytes32 s
     ) public {
         uint256 semaphoreGroupId = _semaphoreGroupIds[verifierMessage_.verificationId];
-        bytes32 nullifier = keccak256(
+        bytes32 nonce = keccak256(
             abi.encode(
                 verifierMessage_.registry,
                 verifierMessage_.verificationId,
@@ -49,7 +49,7 @@ contract zkBringRegistry is IzkBringRegistry, Ownable2Step {
 
         require(semaphoreGroupId != 0, "Verification doesn't exist");
         require(verifierMessage_.registry == address(this), "Wrong Verifier message");
-        require(!_nullifierConsumed[nullifier], "Nullifier is consumed");
+        require(!_nonceUsed[nonce], "Nonce is used");
 
         (address signer,) = keccak256(
             abi.encode(verifierMessage_)
@@ -58,7 +58,7 @@ contract zkBringRegistry is IzkBringRegistry, Ownable2Step {
         require(signer == TLSNVerifier, "Invalid TLSN Verifier signature");
 
         SEMAPHORE.addMember(semaphoreGroupId, verifierMessage_.semaphoreIdentityCommitment);
-        _nullifierConsumed[nullifier] = true;
+        _nonceUsed[nonce] = true;
         emit Verified(verifierMessage_.verificationId, verifierMessage_.semaphoreIdentityCommitment);
     }
 
@@ -81,7 +81,7 @@ contract zkBringRegistry is IzkBringRegistry, Ownable2Step {
             proof_.points
         );
         SEMAPHORE.validateProof(semaphoreGroupId, proof);
-        emit Proven(verificationId_);
+        emit Proved(verificationId_);
     }
 
     // ONLY OWNER //
