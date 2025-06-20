@@ -59,6 +59,7 @@ contract zkBringRegistry is IzkBringRegistry, Ownable2Step {
 
         SEMAPHORE.addMember(semaphoreGroupId, verifierMessage_.semaphoreIdentityCommitment);
         _nullifierConsumed[nullifier] = true;
+        emit Verified(verifierMessage_.verificationId, verifierMessage_.semaphoreIdentityCommitment);
     }
 
     // @notice Validates Semaphore proof
@@ -80,6 +81,7 @@ contract zkBringRegistry is IzkBringRegistry, Ownable2Step {
             proof_.points
         );
         SEMAPHORE.validateProof(semaphoreGroupId, proof);
+        emit Proven(verificationId_);
     }
 
     // ONLY OWNER //
