@@ -17,10 +17,12 @@ contract DeployDev is Script {
         address tlsnVerifierAddress = 0x3c50f7055D804b51e506Bc1EA7D082cB1548376C;
 
         vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
-        GatedMulticall3 multicall = new GatedMulticall3();
-        SemaphoreVerifier semaphoreVerifier = new SemaphoreVerifier();
-        Semaphore semaphore = new Semaphore(ISemaphoreVerifier(address(semaphoreVerifier)));
-        zkBringRegistry registry = new zkBringRegistry(ISemaphore(address(semaphore)), tlsnVerifierAddress);
+            GatedMulticall3 multicall = new GatedMulticall3();
+            SemaphoreVerifier semaphoreVerifier = new SemaphoreVerifier();
+            Semaphore semaphore = new Semaphore(ISemaphoreVerifier(address(semaphoreVerifier)));
+            zkBringRegistry registry = new zkBringRegistry(ISemaphore(address(semaphore)), tlsnVerifierAddress);
+
+            registry.newVerification(1);
         vm.stopBroadcast();
 
         console.log("Multicall:", address(multicall));
