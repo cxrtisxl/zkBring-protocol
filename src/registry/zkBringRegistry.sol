@@ -12,13 +12,12 @@ contract zkBringRegistry is IzkBringRegistry, Ownable2Step {
 
     ISemaphore public immutable SEMAPHORE;
     address public TLSNVerifier;
-    mapping(uint256 verifivationId => uint256 semaphoreGroupId) private _semaphoreGroupIds;
+    mapping(uint256 verifivationId => Verification) public verifications;
     mapping(bytes32 nullifier => bool isConsumed) private _nonceUsed;
 
     constructor(ISemaphore semaphore_, address TLSNVerifier_) {
         SEMAPHORE = semaphore_;
         TLSNVerifier = TLSNVerifier_;
-        SEMAPHORE.createGroup(); // We create an empty Semaphore group to drop groupId: 0
     }
 
     function joinGroup(
@@ -38,7 +37,7 @@ contract zkBringRegistry is IzkBringRegistry, Ownable2Step {
         TLSNVerifierMessage memory verifierMessage_,
         uint8 v, bytes32 r, bytes32 s
     ) public {
-        uint256 semaphoreGroupId = _semaphoreGroupIds[verifierMessage_.verificationId];
+        Verification memory _verification = verifications[verifierMessage_.verificationId];
         bytes32 nonce = keccak256(
             abi.encode(
                 verifierMessage_.registry,
@@ -47,7 +46,7 @@ contract zkBringRegistry is IzkBringRegistry, Ownable2Step {
             )
         );
 
-        require(semaphoreGroupId != 0, "Verification doesn't exist");
+        require(_verification.status == VerificationStatus.ACTIVE, "Verification is inactive");
         require(verifierMessage_.registry == address(this), "Wrong Verifier message");
         require(!_nonceUsed[nonce], "Nonce is used");
 
@@ -57,7 +56,7 @@ contract zkBringRegistry is IzkBringRegistry, Ownable2Step {
 
         require(signer == TLSNVerifier, "Invalid TLSN Verifier signature");
 
-        SEMAPHORE.addMember(semaphoreGroupId, verifierMessage_.semaphoreIdentityCommitment);
+        SEMAPHORE.addMember(_verification.semaphoreGroupId, verifierMessage_.semaphoreIdentityCommitment);
         _nonceUsed[nonce] = true;
         emit Verified(verifierMessage_.verificationId, verifierMessage_.semaphoreIdentityCommitment);
     }
@@ -65,33 +64,68 @@ contract zkBringRegistry is IzkBringRegistry, Ownable2Step {
     // @notice Validates Semaphore proof
     // @dev `context_` parameter here is concatenated with sender address
     function validateProof(
-        uint256 verificationId_,
         uint256 context_,
-        SemaphoreProof calldata proof_
+        VerificationProof calldata proof_
     ) public {
-        uint256 semaphoreGroupId = _semaphoreGroupIds[verificationId_];
-        require(semaphoreGroupId != 0, "Verification doesn't exist");
-
-        ISemaphore.SemaphoreProof memory proof = ISemaphore.SemaphoreProof(
-            proof_.merkleTreeDepth,
-            proof_.merkleTreeRoot,
-            proof_.nullifier,
-            proof_.message,
-            uint256(keccak256(abi.encode(msg.sender, context_))),
-            proof_.points
+        Verification memory _verification = verifications[proof_.verificationId];
+        require(_verification.status == VerificationStatus.ACTIVE, "Verification is inactive");
+        require(
+            proof_.semaphoreProof.scope == uint256(keccak256(abi.encode(msg.sender, context_))),
+            "Wrong scope"
         );
-        SEMAPHORE.validateProof(semaphoreGroupId, proof);
-        emit Proved(verificationId_);
+
+        SEMAPHORE.validateProof(_verification.semaphoreGroupId, proof_.semaphoreProof);
+        emit Proved(proof_.verificationId);
+    }
+
+    function score(
+        VerificationProof[] calldata proofs_,
+        bool skipInactive_
+    ) public view returns (uint256 _score){
+        _score = 0;
+        for (uint256 i = 0; i < proofs_.length; i++) {
+            Verification memory _verification = verifications[proofs_[i].verificationId];
+            if (_verification.status != VerificationStatus.ACTIVE) {
+                if (skipInactive_) {
+                    continue;
+                }
+                // TODO custom error should return the inactive verification ID
+                revert("Verification is inactive");
+            }
+            _verifyProof(_verification.semaphoreGroupId, proofs_[i].semaphoreProof);
+            _score += _verification.score;
+        }
+    }
+
+    function verifyProof(
+        VerificationProof calldata proof_
+    ) public view returns (bool) {
+        Verification memory _verification = verifications[proof_.verificationId];
+        require(_verification.status == VerificationStatus.ACTIVE, "Verification is inactive");
+        return _verifyProof(_verification.semaphoreGroupId, proof_.semaphoreProof);
+    }
+
+    function _verifyProof(
+        uint256 groupId_,
+        ISemaphore.SemaphoreProof calldata semaphoreProof_
+    ) private view returns(bool) {
+        return SEMAPHORE.verifyProof(groupId_, semaphoreProof_);
     }
 
     // ONLY OWNER //
 
     function newVerification(
-        uint256 verificationId
+        uint256 verificationId_,
+        uint256 score
     ) public onlyOwner {
-        require(_semaphoreGroupIds[verificationId] == 0, "Verification exists");
-        _semaphoreGroupIds[verificationId] = SEMAPHORE.createGroup();
-        emit VerificationCreated(verificationId);
+        require(verifications[verificationId_].status == VerificationStatus.UNDEFINED, "Verification exists");
+        Verification memory _verification = Verification(
+            score,
+            SEMAPHORE.createGroup(),
+            IzkBringRegistry.VerificationStatus.ACTIVE
+        );
+        verifications[verificationId_] = _verification;
+        emit VerificationCreated(verificationId_, _verification);
     }
 
     // TODO: Suspend verification

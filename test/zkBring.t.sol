@@ -62,7 +62,7 @@ contract zkBringTest is Test {
 
     function testVerification() public {
         uint256 verificationId = vm.randomUint();
-        registry.newVerification(verificationId); // Creating a new Verefication
+        registry.newVerification(verificationId, 10); // Creating a new Verefication
         verify(
             vm.randomAddress(), // Calling from a random address (drop contract / DAO voting contract etc.)
             verificationId,
@@ -73,7 +73,7 @@ contract zkBringTest is Test {
 
     function testValidation() public {
         uint256 verificationId = vm.randomUint();
-        registry.newVerification(verificationId); // Creating a new Verefication
+        registry.newVerification(verificationId, 10); // Creating a new Verefication
 
         uint256 commitmentKey = vm.randomUint();
         uint256[] memory commitments = new uint256[](1);
@@ -89,6 +89,7 @@ contract zkBringTest is Test {
         );
 
         uint256 scope = uint256(keccak256(abi.encode(sender, 0)));
+
         (
             uint256 merkleTreeDepth,
             uint256 merkleTreeRoot,
@@ -101,15 +102,18 @@ contract zkBringTest is Test {
             commitments
         );
 
-        IRegistry.SemaphoreProof memory proof = IRegistry.SemaphoreProof(
-            merkleTreeDepth,
-            merkleTreeRoot,
-            nullifier,
-            message,
-            points
+        IRegistry.VerificationProof memory proof = IRegistry.VerificationProof(
+            verificationId,
+            ISemaphore.SemaphoreProof(
+                merkleTreeDepth,
+                merkleTreeRoot,
+                nullifier,
+                message,
+                scope,
+                points
+            )
         );
-
         vm.prank(sender);
-        registry.validateProof(verificationId, 0, proof);
+        registry.validateProof(0, proof);
     }
 }

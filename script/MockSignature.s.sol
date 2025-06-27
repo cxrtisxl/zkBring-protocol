@@ -15,6 +15,10 @@ contract Generate is Script {
             semaphoreIdentityCommitment: vm.envUint("COMMITMENT")
         });
 
+        bytes32 message = keccak256(abi.encode(verifierMessage)).toEthSignedMessageHash();
+
+        console.logBytes32(message);
+
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(
             vm.envUint("SIGNER_PK"),
             keccak256(abi.encode(verifierMessage)).toEthSignedMessageHash()

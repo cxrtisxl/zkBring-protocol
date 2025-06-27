@@ -8,11 +8,6 @@ import {IERC20} from "openzeppelin/token/ERC20/IERC20.sol";
 contract zkBringDropByScore is zkBringDropBase {
     uint256 public immutable scoreThreshold;
 
-    struct VerificationProof {
-        uint256 verificationId;
-        IzkBringRegistry.SemaphoreProof proof;
-    }
-
     constructor(
         uint256 scoreThreshold_,
         IzkBringRegistry registry_,
@@ -38,11 +33,12 @@ contract zkBringDropByScore is zkBringDropBase {
         scoreThreshold = scoreThreshold_;
     }
 
-    function claim(VerificationProof[] calldata proofs) public {
+    function claim(IzkBringRegistry.VerificationProof[] calldata proofs) public {
         require(proofs.length != scoreThreshold, "Wrong amount of proofs provided");
         require(claims < maxClaims, "All claims exhausted");
         for (uint256 i; i < proofs.length; i++) {
-            registry.validateProof(proofs[i].verificationId, 0, proofs[i].proof);
+            // TODO fix context - there should be 1 drop contract per verification
+            registry.validateProof(0, proofs[i]);
         }
         claims++;
         require(

@@ -1,13 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
+import {ISemaphore} from "semaphore-protocol/interfaces/ISemaphore.sol";
 
 interface IzkBringRegistry {
-    struct SemaphoreProof {
-        uint256 merkleTreeDepth;
-        uint256 merkleTreeRoot;
-        uint256 nullifier;
-        uint256 message;
-        uint256[8] points;
+    enum VerificationStatus{UNDEFINED, ACTIVE, SUSPENDED}
+
+    struct Verification {
+        uint256 score;
+        uint256 semaphoreGroupId;
+        VerificationStatus status;
+    }
+
+    struct VerificationProof {
+        uint256 verificationId;
+        ISemaphore.SemaphoreProof semaphoreProof;
     }
 
     struct TLSNVerifierMessage {
@@ -17,5 +23,5 @@ interface IzkBringRegistry {
         uint256 semaphoreIdentityCommitment;
     }
 
-    function validateProof(uint256 verificationId, uint256 context, SemaphoreProof memory proof) external;
+    function validateProof(uint256 context, VerificationProof calldata proof) external;
 }

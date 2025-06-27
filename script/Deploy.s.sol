@@ -7,7 +7,6 @@ import {ISemaphore} from "semaphore-protocol/interfaces/ISemaphore.sol";
 import {SemaphoreVerifier} from "semaphore-protocol/base/SemaphoreVerifier.sol";
 import {Semaphore} from "semaphore-protocol/Semaphore.sol";
 import {zkBringRegistry} from "../src/registry/zkBringRegistry.sol";
-import {GatedMulticall3} from "../src/multicall/GatedMulticall3.sol";
 
 contract DeployDev is Script {
     function setUp() public {}
@@ -21,7 +20,7 @@ contract DeployDev is Script {
             Semaphore semaphore = new Semaphore(ISemaphoreVerifier(address(semaphoreVerifier)));
             zkBringRegistry registry = new zkBringRegistry(ISemaphore(address(semaphore)), tlsnVerifierAddress);
 
-            registry.newVerification(1);
+            registry.newVerification(1, 10);
         vm.stopBroadcast();
 
         console.log("Verifier:", address(semaphoreVerifier));
