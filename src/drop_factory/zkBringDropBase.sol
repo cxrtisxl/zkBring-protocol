@@ -55,10 +55,14 @@ abstract contract zkBringDropBase is Ownable2Step {
         _transferOwnership(creator_);
     }
 
+    function scope() public view virtual returns (uint256) {
+        return uint256(keccak256(abi.encode(address(this), 0)));
+    }
+
     /**
      * @notice Stake bring tokens. Can be called multiple times to add additional stake.
      */
-    function stake(uint256 amount_) external onlyOwner notStopped notExpired {
+    function stake(uint256 amount_) public onlyOwner notStopped notExpired {
         require(amount_ > 0, "Stake amount must be greater than zero");
         require(
             BRING_TOKEN.transferFrom(msg.sender, address(this), amount_),

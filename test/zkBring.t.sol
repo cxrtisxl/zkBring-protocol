@@ -11,8 +11,10 @@ import {Test, console} from "forge-std/Test.sol";
 import {zkBringDropFactory} from "../src/drop_factory/zkBringDropFactory.sol";
 import {ECDSA} from "openzeppelin/utils/cryptography/ECDSA.sol";
 import {TestUtils} from "./TestUtils.sol";
+import {zkBringDropByVerification} from "../src/drop_factory/zkBringDropByVerification.sol";
+import {Token} from "../src/mock/Token.sol";
 
-struct TLSNVerifier {
+    struct TLSNVerifier {
     uint256 privateKey;
     address addr;
 }
@@ -26,6 +28,9 @@ contract zkBringTest is Test {
     zkBringRegistry private registry;
     zkBringDropFactory private dropFactory;
     TLSNVerifier private tlsnVerifier;
+    Token private token;
+    Token private bringToken;
+    zkBringDropByVerification private drop;
 
     function setUp() public {
         (tlsnVerifier.addr, tlsnVerifier.privateKey) = makeAddrAndKey("TLSN-verifier");
@@ -33,7 +38,8 @@ contract zkBringTest is Test {
         semaphoreVerifier = new SemaphoreVerifier();
         semaphore = new Semaphore(ISemaphoreVerifier(address(semaphoreVerifier)));
         registry = new zkBringRegistry(ISemaphore(address(semaphore)), tlsnVerifier.addr);
-        // (uint8 v, bytes32 r, bytes32 s) = vm.sign(verifier.privateKey, hash);
+        bringToken = new Token("Bring", "BRING", address(this), 10000);
+        token = new Token("Testo", "TESTO", address(this), 10000);
     }
 
     // @notice verifies user data, generates commitment and adds it to Registry
@@ -82,7 +88,7 @@ contract zkBringTest is Test {
         address sender = vm.randomAddress();
 
         verify(
-            sender, // Calling from a random address (drop contract / DAO voting contract etc.)
+            sender, // Calling from a random address (Relayer)
             verificationId,
             keccak256(vm.randomBytes(32)),
             commitments[0]
@@ -115,5 +121,63 @@ contract zkBringTest is Test {
         );
         vm.prank(sender);
         registry.validateProof(0, proof);
+    }
+
+    function testClaim() public {
+        address sender = vm.randomAddress(); // e.g. Relayer or "someone"
+        uint256 verificationId = vm.randomUint();
+        drop = new zkBringDropByVerification(
+            verificationId,
+            registry,
+            address(sender),
+            token,
+            10,
+            1000,
+            block.timestamp * 2,
+            "",
+            bringToken
+        );
+        token.transfer(address(drop), 10000);
+        registry.newVerification(verificationId, 10); // Creating a new Verefication
+
+        uint256 commitmentKey = vm.randomUint();
+        uint256[] memory commitments = new uint256[](1);
+        commitments[0] = TestUtils.semaphoreCommitment(commitmentKey);
+
+        verify(
+            sender, // Calling from a random address (Relayer)
+            verificationId,
+            keccak256(vm.randomBytes(32)),
+            commitments[0]
+        );
+
+        uint256 scope = uint256(keccak256(abi.encode(address(drop), 0)));
+
+        (
+            uint256 merkleTreeDepth,
+            uint256 merkleTreeRoot,
+            uint256 nullifier,
+            uint256 message,
+            uint256[8] memory points
+        ) = TestUtils.semaphoreProof(
+            commitmentKey,
+            scope,
+            commitments
+        );
+
+        IRegistry.VerificationProof memory proof = IRegistry.VerificationProof(
+            verificationId,
+            ISemaphore.SemaphoreProof(
+                merkleTreeDepth,
+                merkleTreeRoot,
+                nullifier,
+                message,
+                scope,
+                points
+            )
+        );
+        address recipient = vm.randomAddress();
+        drop.claim(proof, recipient);
+        assertEq(token.balanceOf(recipient), 10);
     }
 }

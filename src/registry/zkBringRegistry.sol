@@ -116,11 +116,11 @@ contract zkBringRegistry is IzkBringRegistry, Ownable2Step {
 
     function newVerification(
         uint256 verificationId_,
-        uint256 score
+        uint256 score_
     ) public onlyOwner {
         require(verifications[verificationId_].status == VerificationStatus.UNDEFINED, "Verification exists");
         Verification memory _verification = Verification(
-            score,
+            score_,
             SEMAPHORE.createGroup(),
             IzkBringRegistry.VerificationStatus.ACTIVE
         );
