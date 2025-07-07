@@ -5,13 +5,13 @@ import {ISemaphoreVerifier} from "semaphore-protocol/interfaces/ISemaphoreVerifi
 import {ISemaphore} from "semaphore-protocol/interfaces/ISemaphore.sol";
 import {SemaphoreVerifier} from "semaphore-protocol/base/SemaphoreVerifier.sol";
 import {Semaphore} from "semaphore-protocol/Semaphore.sol";
-import {zkBringRegistry} from "../src/registry/zkBringRegistry.sol";
-import {IzkBringRegistry as IRegistry} from "../src/registry/IzkBringRegistry.sol";
+import {BringRegistry} from "../src/registry/BringRegistry.sol";
+import {IBringRegistry as IRegistry} from "../src/registry/IBringRegistry.sol";
 import {Test, console} from "forge-std/Test.sol";
-import {zkBringDropFactory} from "../src/drop_factory/zkBringDropFactory.sol";
+import {BringDropFactory} from "../src/drop/BringDropFactory.sol";
 import {ECDSA} from "openzeppelin/utils/cryptography/ECDSA.sol";
 import {TestUtils} from "./TestUtils.sol";
-import {zkBringDropByVerification} from "../src/drop_factory/zkBringDropByVerification.sol";
+import {BringDropByVerification} from "../src/drop/BringDropByVerification.sol";
 import {Token} from "../src/mock/Token.sol";
 
     struct TLSNVerifier {
@@ -25,19 +25,19 @@ contract zkBringTest is Test {
     SemaphoreVerifier private semaphoreVerifier;
     Semaphore private semaphore;
 
-    zkBringRegistry private registry;
-    zkBringDropFactory private dropFactory;
+    BringRegistry private registry;
+    BringDropFactory private dropFactory;
     TLSNVerifier private tlsnVerifier;
     Token private token;
     Token private bringToken;
-    zkBringDropByVerification private drop;
+    BringDropByVerification private drop;
 
     function setUp() public {
         (tlsnVerifier.addr, tlsnVerifier.privateKey) = makeAddrAndKey("TLSN-verifier");
 
         semaphoreVerifier = new SemaphoreVerifier();
         semaphore = new Semaphore(ISemaphoreVerifier(address(semaphoreVerifier)));
-        registry = new zkBringRegistry(ISemaphore(address(semaphore)), tlsnVerifier.addr);
+        registry = new BringRegistry(ISemaphore(address(semaphore)), tlsnVerifier.addr);
         bringToken = new Token("Bring", "BRING", address(this), 10000);
         token = new Token("Testo", "TESTO", address(this), 10000);
     }
@@ -126,7 +126,8 @@ contract zkBringTest is Test {
     function testClaim() public {
         address sender = vm.randomAddress(); // e.g. Relayer or "someone"
         uint256 verificationId = vm.randomUint();
-        drop = new zkBringDropByVerification(
+        registry.newVerification(verificationId, 10); // Creating a new Verefication
+        drop = new BringDropByVerification(
             verificationId,
             registry,
             address(sender),
@@ -138,7 +139,6 @@ contract zkBringTest is Test {
             bringToken
         );
         token.transfer(address(drop), 10000);
-        registry.newVerification(verificationId, 10); // Creating a new Verefication
 
         uint256 commitmentKey = vm.randomUint();
         uint256[] memory commitments = new uint256[](1);

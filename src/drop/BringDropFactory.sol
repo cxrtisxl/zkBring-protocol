@@ -3,11 +3,11 @@ pragma solidity ^0.8.23;
 
 import {IERC20} from "openzeppelin/token/ERC20/IERC20.sol";
 import {Ownable2Step} from "openzeppelin/access/Ownable2Step.sol";
-import {IzkBringRegistry} from "../registry/IzkBringRegistry.sol";
+import {IBringRegistry} from "../registry/IBringRegistry.sol";
+import {BringDropByScore} from "./BringDropByScore.sol";
 import "./Events.sol";
-import {zkBringDropByScore} from "./zkBringDropByScore.sol";
 
-contract zkBringDropFactory is Ownable2Step {
+contract BringDropFactory is Ownable2Step {
     // Fee 0.01 percentage (e.g., 5 means 0.05%)
     uint256 public fee;
     address public feeRecipient;
@@ -23,8 +23,8 @@ contract zkBringDropFactory is Ownable2Step {
      * @notice Create a new ERC20 drop.
      * @return dropAddress The address of the newly created drop.
      */
-    function createDropBySore(
-        IzkBringRegistry registry_,
+    function createDropByScore(
+        IBringRegistry registry_,
         uint256 scoreThreshold_,
         IERC20 token_,
         uint256 amount_,
@@ -35,7 +35,7 @@ contract zkBringDropFactory is Ownable2Step {
         uint256 totalDistribution = amount_ * maxClaims_;
         uint256 feeAmount = (totalDistribution * fee) / 10000;
 
-        zkBringDropByScore drop = new zkBringDropByScore(
+        BringDropByScore drop = new BringDropByScore(
             scoreThreshold_,
             registry_,
             msg.sender,
@@ -80,11 +80,13 @@ contract zkBringDropFactory is Ownable2Step {
 
     // ONLY OWNER //
     function updateFee(uint256 _fee) external onlyOwner {
+        require(_fee <= 10000, "Invalid fee");
         fee = _fee;
         emit FeeUpdated(_fee);
     }
 
     function updateFeeRecipient(address _feeRecipient) external onlyOwner {
+        require(_feeRecipient != address(0), "Invalid fee recipient");
         feeRecipient = _feeRecipient;
         emit FeeRecipientUpdated(_feeRecipient);
     }

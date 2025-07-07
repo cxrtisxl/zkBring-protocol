@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import "../src/drop_factory/zkBringDropByVerification.sol";
+import "../src/drop/BringDropByVerification.sol";
 import {ISemaphoreVerifier} from "semaphore-protocol/interfaces/ISemaphoreVerifier.sol";
 import {ISemaphore} from "semaphore-protocol/interfaces/ISemaphore.sol";
 import {Script, console} from "forge-std/Script.sol";
 import {SemaphoreVerifier} from "semaphore-protocol/base/SemaphoreVerifier.sol";
 import {Semaphore} from "semaphore-protocol/Semaphore.sol";
 import {Token} from "../src/mock/Token.sol";
-import {zkBringRegistry} from "../src/registry/zkBringRegistry.sol";
+import {BringRegistry} from "../src/registry/BringRegistry.sol";
 
 contract DeployDev is Script {
     function setUp() public {}
@@ -20,11 +20,20 @@ contract DeployDev is Script {
 
         vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
             SemaphoreVerifier semaphoreVerifier = new SemaphoreVerifier();
-            Semaphore semaphore = new Semaphore(ISemaphoreVerifier(address(semaphoreVerifier)));
-            zkBringRegistry registry = new zkBringRegistry(ISemaphore(address(semaphore)), tlsnVerifierAddress);
+
+            Semaphore semaphore;
+            if (vm.envAddress('SEMAPHORE_ADDRESS') == address(0)) {
+                semaphore = new Semaphore(ISemaphoreVerifier(address(semaphoreVerifier)));
+            } else {
+                semaphore = Semaphore(vm.envAddress('SEMAPHORE_ADDRESS'));
+            }
+
+            BringRegistry registry = new BringRegistry(ISemaphore(address(semaphore)), tlsnVerifierAddress);
             Token token = new Token("Testo", "TESTO", msg.sender, 10**32);
             Token bringToken = new Token("Bring", "BRING", msg.sender, 10**32);
-            zkBringDropByVerification drop = new zkBringDropByVerification(
+
+            registry.newVerification(verificationId, 10);
+            BringDropByVerification drop = new BringDropByVerification(
                 verificationId,
                 registry,
                 msg.sender,
@@ -36,8 +45,6 @@ contract DeployDev is Script {
                 bringToken
             );
             token.transfer(address(drop), 10**32);
-
-            registry.newVerification(verificationId, 10);
         vm.stopBroadcast();
 
         console.log("Verifier:", address(semaphoreVerifier));

@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {IzkBringRegistry} from "../registry/IzkBringRegistry.sol";
-import {zkBringDropBase} from "./zkBringDropBase.sol";
+import {IBringRegistry} from "../registry/IBringRegistry.sol";
+import {BringDropBase} from "./BringDropBase.sol";
 import {IERC20} from "openzeppelin/token/ERC20/IERC20.sol";
 
-contract zkBringDropByScore is zkBringDropBase {
+contract BringDropByScore is BringDropBase {
     uint256 public immutable scoreThreshold;
 
     constructor(
         uint256 scoreThreshold_,
-        IzkBringRegistry registry_,
+        IBringRegistry registry_,
         address creator_,
         IERC20 token_,
         uint256 amount_,
@@ -19,7 +19,7 @@ contract zkBringDropByScore is zkBringDropBase {
         string memory metadataIpfsHash_,
         IERC20 bringToken_
     )
-        zkBringDropBase(
+        BringDropBase(
             registry_,
             creator_,
             token_,
@@ -33,9 +33,12 @@ contract zkBringDropByScore is zkBringDropBase {
         scoreThreshold = scoreThreshold_;
     }
 
-    function claim(IzkBringRegistry.VerificationProof[] calldata proofs) public {
-        require(proofs.length != scoreThreshold, "Wrong amount of proofs provided");
-        require(claims < maxClaims, "All claims exhausted");
+    function claim(
+        IBringRegistry.VerificationProof[] calldata proofs
+    ) public notStopped notExpired {
+        require(proofs.length == scoreThreshold, "Wrong amount of proofs provided");
+//        uint256 totalScore = registry.score(proofs, false);
+//        require(totalScore >= scoreThreshold, "Insufficient score");
         for (uint256 i; i < proofs.length; i++) {
             // TODO fix context - there should be 1 drop contract per verification
             registry.validateProof(0, proofs[i]);

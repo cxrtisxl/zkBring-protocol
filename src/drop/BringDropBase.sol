@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {IzkBringRegistry} from "../registry/IzkBringRegistry.sol";
+import {IBringRegistry} from "../registry/IBringRegistry.sol";
 import {Ownable2Step} from "openzeppelin/access/Ownable2Step.sol";
 import {IERC20} from "openzeppelin/token/ERC20/IERC20.sol";
 import "./Events.sol";
 
-abstract contract zkBringDropBase is Ownable2Step {
+abstract contract BringDropBase is Ownable2Step {
     // Drop configuration
-    IzkBringRegistry public immutable registry;
+    IBringRegistry public immutable registry;
     IERC20 public immutable token;
     uint256 public immutable amount; // Amount per claim
     uint256 public immutable maxClaims; // Maximum number of claims allowed
@@ -34,7 +34,7 @@ abstract contract zkBringDropBase is Ownable2Step {
      * @notice Constructor sets the drop parameters and transfers ownership to the creator.
      */
     constructor(
-        IzkBringRegistry registry_,
+        IBringRegistry registry_,
         address creator_,
         IERC20 token_,
         uint256 amount_,
@@ -43,6 +43,9 @@ abstract contract zkBringDropBase is Ownable2Step {
         string memory metadataIpfsHash_,
         IERC20 bringToken_
     ) {
+        require(amount_ > 0, "Amount must be greater than zero");
+        require(maxClaims_ > 0, "Max claims must be greater than zero");
+        require(expiration_ > block.timestamp, "Expiration must be in the future");
         registry = registry_;
         token = token_;
         amount = amount_;

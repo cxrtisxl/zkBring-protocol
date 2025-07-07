@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 import {Script, console} from "forge-std/Script.sol";
-import { IzkBringRegistry as IRegistry } from "../src/registry/IzkBringRegistry.sol";
+import { IBringRegistry as IRegistry } from "../src/registry/IBringRegistry.sol";
 import {ECDSA} from "openzeppelin/utils/cryptography/ECDSA.sol";
 
 contract Generate is Script {

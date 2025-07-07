@@ -2,7 +2,7 @@
 pragma solidity ^0.8.23;
 import {ISemaphore} from "semaphore-protocol/interfaces/ISemaphore.sol";
 
-interface IzkBringRegistry {
+interface IBringRegistry {
     enum VerificationStatus{UNDEFINED, ACTIVE, SUSPENDED}
 
     struct Verification {
@@ -24,4 +24,5 @@ interface IzkBringRegistry {
     }
 
     function validateProof(uint256 context, VerificationProof calldata proof) external;
+    function verificationIsActive(uint256 verificationId_) external view returns (bool);
 }

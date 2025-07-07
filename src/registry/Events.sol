@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {IzkBringRegistry} from "./IzkBringRegistry.sol";
+import {IBringRegistry} from "./IBringRegistry.sol";
 
-event VerificationCreated(uint256 indexed verificationId, IzkBringRegistry.Verification verification);
+event VerificationCreated(uint256 indexed verificationId, IBringRegistry.Verification verification);
 event Verified(uint256 indexed verificationId, uint256 indexed commitment);
 event Proved(uint256 indexed verificationId);
 

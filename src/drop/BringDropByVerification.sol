@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {IzkBringRegistry} from "../registry/IzkBringRegistry.sol";
-import {zkBringDropBase} from "./zkBringDropBase.sol";
+import {IBringRegistry} from "../registry/IBringRegistry.sol";
+import {BringDropBase} from "./BringDropBase.sol";
 import {IERC20} from "openzeppelin/token/ERC20/IERC20.sol";
 
-contract zkBringDropByVerification is zkBringDropBase {
+contract BringDropByVerification is BringDropBase {
     uint256 public immutable verificationId;
 
     constructor(
         uint256 verificationId_,
-        IzkBringRegistry registry_,
+        IBringRegistry registry_,
         address creator_,
         IERC20 token_,
         uint256 amount_,
@@ -19,7 +19,7 @@ contract zkBringDropByVerification is zkBringDropBase {
         string memory metadataIpfsHash_,
         IERC20 bringToken_
     )
-        zkBringDropBase(
+        BringDropBase(
             registry_,
             creator_,
             token_,
@@ -30,18 +30,19 @@ contract zkBringDropByVerification is zkBringDropBase {
             bringToken_
         )
     {
+        require(registry_.verificationIsActive(verificationId_), "Verification is inactive");
         verificationId = verificationId_;
     }
 
     function claim(
-        IzkBringRegistry.VerificationProof calldata proof,
+        IBringRegistry.VerificationProof calldata proof,
         address to
-    ) public {
+    ) public notStopped notExpired {
         require(proof.verificationId == verificationId, "Wrong Verification");
         require(claims < maxClaims, "All claims exhausted");
 
-        registry.validateProof(0, proof);
         claims++;
+        registry.validateProof(0, proof);
 
         require(
             token.transfer(to, amount),

@@ -2,12 +2,12 @@
 pragma solidity ^0.8.23;
 
 import "./Events.sol";
-import {IzkBringRegistry} from "./IzkBringRegistry.sol";
+import {IBringRegistry} from "./IBringRegistry.sol";
 import {ECDSA} from "openzeppelin/utils/cryptography/ECDSA.sol";
 import {ISemaphore} from "semaphore-protocol/interfaces/ISemaphore.sol";
 import {Ownable2Step} from "openzeppelin/access/Ownable2Step.sol";
 
-contract zkBringRegistry is IzkBringRegistry, Ownable2Step {
+contract BringRegistry is IBringRegistry, Ownable2Step {
     using ECDSA for bytes32;
 
     ISemaphore public immutable SEMAPHORE;
@@ -20,6 +20,13 @@ contract zkBringRegistry is IzkBringRegistry, Ownable2Step {
         TLSNVerifier = TLSNVerifier_;
     }
 
+    function verificationIsActive(
+        uint256 verificationId_
+    ) public view returns (bool) {
+        return verifications[verificationId_].status == VerificationStatus.ACTIVE;
+    }
+
+    // @notice signature can be reused across all networks
     function joinGroup(
         TLSNVerifierMessage memory verifierMessage_,
         bytes memory signature_
@@ -38,6 +45,7 @@ contract zkBringRegistry is IzkBringRegistry, Ownable2Step {
         uint8 v, bytes32 r, bytes32 s
     ) public {
         Verification memory _verification = verifications[verifierMessage_.verificationId];
+        // excludes semaphoreIdentityCommitment ensuring one verification for verificationId + idHash (user account ID).
         bytes32 nonce = keccak256(
             abi.encode(
                 verifierMessage_.registry,
@@ -118,11 +126,12 @@ contract zkBringRegistry is IzkBringRegistry, Ownable2Step {
         uint256 verificationId_,
         uint256 score_
     ) public onlyOwner {
+        require(verificationId_ > 0, "Verification ID cannot equal zero");
         require(verifications[verificationId_].status == VerificationStatus.UNDEFINED, "Verification exists");
         Verification memory _verification = Verification(
             score_,
             SEMAPHORE.createGroup(),
-            IzkBringRegistry.VerificationStatus.ACTIVE
+            IBringRegistry.VerificationStatus.ACTIVE
         );
         verifications[verificationId_] = _verification;
         emit VerificationCreated(verificationId_, _verification);
@@ -133,6 +142,7 @@ contract zkBringRegistry is IzkBringRegistry, Ownable2Step {
     function setVerifier(
         address TLSNVerifier_
     ) public onlyOwner {
+        require(TLSNVerifier_ != address(0), "Invalid TLSN Verifier address");
         TLSNVerifier = TLSNVerifier_;
         emit TLSNVerifierSet(TLSNVerifier_);
     }
