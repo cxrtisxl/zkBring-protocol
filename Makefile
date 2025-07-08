@@ -20,6 +20,9 @@ test-base:
 test-verification:
 	forge test --match-path "test/BringDropByVerification.t.sol" --ffi -v
 
+test-score:
+	forge test --match-path "test/BringDropByScore.t.sol" --ffi -v
+
 test-zkbring:
 	forge test --match-path "test/zkBring.t.sol" --ffi -v
 

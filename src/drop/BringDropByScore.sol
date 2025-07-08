@@ -36,14 +36,14 @@ contract BringDropByScore is BringDropBase {
     function claim(
         IBringRegistry.VerificationProof[] calldata proofs
     ) public notStopped notExpired {
-        require(proofs.length == scoreThreshold, "Wrong amount of proofs provided");
-//        uint256 totalScore = registry.score(proofs, false);
-//        require(totalScore >= scoreThreshold, "Insufficient score");
+        require(claims < maxClaims, "All claims exhausted");
+        uint256 totalScore = registry.score(proofs, true);
+        require(totalScore > scoreThreshold, "Insufficient score");
+
+        claims++;
         for (uint256 i; i < proofs.length; i++) {
-            // TODO fix context - there should be 1 drop contract per verification
             registry.validateProof(0, proofs[i]);
         }
-        claims++;
         require(
             token.transfer(msg.sender, amount),
             "Token transfer failed"

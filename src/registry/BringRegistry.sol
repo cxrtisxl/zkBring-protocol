@@ -86,6 +86,7 @@ contract BringRegistry is IBringRegistry, Ownable2Step {
         emit Proved(proof_.verificationId);
     }
 
+    // @notice this function doesn't check proofs' nullifiers
     function score(
         VerificationProof[] calldata proofs_,
         bool skipInactive_
