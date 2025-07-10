@@ -140,7 +140,7 @@ contract BringDropByVerificationTest is Test {
         uint256 initialBalance = token.balanceOf(recipient);
         uint256 initialClaims = drop.claims();
         
-        drop.claim(proof, recipient);
+        drop.claim(recipient, proof);
         
         assertEq(token.balanceOf(recipient), initialBalance + AMOUNT);
         assertEq(drop.claims(), initialClaims + 1);
@@ -194,7 +194,7 @@ contract BringDropByVerificationTest is Test {
         });
         
         vm.expectRevert("Wrong Verification");
-        drop.claim(proof, recipient);
+        drop.claim(recipient, proof);
     }
 
     function testClaimExhausted() public {
@@ -262,12 +262,12 @@ contract BringDropByVerificationTest is Test {
         });
         
         // First claim should succeed
-        smallDrop.claim(proof, recipient);
+        smallDrop.claim(recipient, proof);
         assertEq(smallDrop.claims(), 1);
         
         // Second claim should fail
         vm.expectRevert("All claims exhausted");
-        smallDrop.claim(proof, recipient);
+        smallDrop.claim(recipient, proof);
     }
 
     function testClaimInvalidProof() public {
@@ -302,7 +302,7 @@ contract BringDropByVerificationTest is Test {
         
         // This should fail because the proof is invalid (member not in group)
         vm.expectRevert();
-        drop.claim(proof, recipient);
+        drop.claim(recipient, proof);
     }
 
     function testClaimTokenTransferFails() public {
@@ -366,7 +366,7 @@ contract BringDropByVerificationTest is Test {
         });
         
         vm.expectRevert("ERC20: transfer amount exceeds balance");
-        emptyDrop.claim(proof, recipient);
+        emptyDrop.claim(recipient, proof);
     }
 
     function testMultipleClaims() public {
@@ -463,12 +463,12 @@ contract BringDropByVerificationTest is Test {
         address recipient2 = makeAddr("recipient2");
         
         // First claim
-        drop.claim(proof1, recipient1);
+        drop.claim(recipient1, proof1);
         assertEq(token.balanceOf(recipient1), AMOUNT);
         assertEq(drop.claims(), 1);
         
         // Second claim
-        drop.claim(proof2, recipient2);
+        drop.claim(recipient2, proof2);
         assertEq(token.balanceOf(recipient2), AMOUNT);
         assertEq(drop.claims(), 2);
     }
@@ -525,7 +525,7 @@ contract BringDropByVerificationTest is Test {
         uint256 initialBalance = token.balanceOf(to);
         uint256 initialClaims = drop.claims();
         
-        drop.claim(proof, to);
+        drop.claim(to, proof);
         
         assertEq(token.balanceOf(to), initialBalance + AMOUNT);
         assertEq(drop.claims(), initialClaims + 1);
@@ -614,7 +614,7 @@ contract BringDropByVerificationTest is Test {
         
         // Claim should fail because drop is stopped
         vm.expectRevert("Campaign stopped");
-        drop.claim(proof, recipient);
+        drop.claim(recipient, proof);
     }
 
     function testSameUserCannotClaimTwice() public {
@@ -665,12 +665,12 @@ contract BringDropByVerificationTest is Test {
         });
         
         // First claim should succeed
-        drop.claim(proof, recipient);
+        drop.claim(recipient, proof);
         assertEq(token.balanceOf(recipient), AMOUNT);
         assertEq(drop.claims(), 1);
         
         // Second claim with same proof should fail (nullifier already used)
         vm.expectRevert();
-        drop.claim(proof, recipient);
+        drop.claim(recipient, proof);
     }
 }

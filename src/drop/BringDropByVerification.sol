@@ -35,8 +35,8 @@ contract BringDropByVerification is BringDropBase {
     }
 
     function claim(
-        IBringRegistry.VerificationProof calldata proof,
-        address to
+        address to,
+        IBringRegistry.VerificationProof calldata proof
     ) public notStopped notExpired {
         require(proof.verificationId == verificationId, "Wrong Verification");
         require(claims < maxClaims, "All claims exhausted");

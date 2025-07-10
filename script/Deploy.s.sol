@@ -2,6 +2,8 @@
 pragma solidity ^0.8.23;
 
 import "../src/drop/BringDropByVerification.sol";
+import "../src/drop/BringDropByScore.sol";
+import {IBringRegistry} from "../src/registry/IBringRegistry.sol";
 import {ISemaphoreVerifier} from "semaphore-protocol/interfaces/ISemaphoreVerifier.sol";
 import {ISemaphore} from "semaphore-protocol/interfaces/ISemaphore.sol";
 import {Script, console} from "forge-std/Script.sol";
@@ -10,8 +12,31 @@ import {Semaphore} from "semaphore-protocol/Semaphore.sol";
 import {Token} from "../src/mock/Token.sol";
 import {BringRegistry} from "../src/registry/BringRegistry.sol";
 
+contract DeployDevDropByScore is Script {
+    function run() public {
+        vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
+            Token token = new Token("Testo", "TESTO", msg.sender, 10**32);
+            Token bringToken = new Token("Bring", "BRING", msg.sender, 10**32);
+            BringDropByScore drop = new BringDropByScore(
+                10,
+                IBringRegistry(0x71a1D4f105aBccC82565fA6969A4685aF92c99C8),
+                msg.sender,
+                IERC20(address(token)),
+                10**19,
+                10**13,
+                block.timestamp * 2,
+                "",
+                bringToken
+            );
+        vm.stopBroadcast();
+
+        console.log("Mock Token:", address(token));
+        console.log("Bring Token:", address(bringToken));
+        console.log("Drop:", address(drop));
+    }
+}
+
 contract DeployDev is Script {
-    function setUp() public {}
     function run() public {
         // TLSN Verifier private key
         // 0x7FA50A02193219D0625C2831908477D3568E5BEECA9AABE34381506A2431AFDE

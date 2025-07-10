@@ -34,6 +34,7 @@ contract BringDropByScore is BringDropBase {
     }
 
     function claim(
+        address to,
         IBringRegistry.VerificationProof[] calldata proofs
     ) public notStopped notExpired {
         require(claims < maxClaims, "All claims exhausted");
@@ -45,7 +46,7 @@ contract BringDropByScore is BringDropBase {
             registry.validateProof(0, proofs[i]);
         }
         require(
-            token.transfer(msg.sender, amount),
+            token.transfer(to, amount),
             "Token transfer failed"
         );
     }

@@ -229,7 +229,7 @@ contract BringDropByScoreTest is Test {
         
         // Total score: 100 + 150 + 50 = 300 > 200 threshold
         vm.prank(recipient);
-        drop.claim(proofs);
+        drop.claim(recipient, proofs);
         
         assertEq(token.balanceOf(recipient), initialBalance + AMOUNT);
         assertEq(drop.claims(), initialClaims + 1);
@@ -285,7 +285,7 @@ contract BringDropByScoreTest is Test {
         
         // Score = 50 < 200 threshold (need > 200)
         vm.expectRevert("Insufficient score");
-        drop.claim(proofs);
+        drop.claim(recipient, proofs);
     }
 
     function testClaimWithZeroScoreVerification() public {
@@ -342,7 +342,7 @@ contract BringDropByScoreTest is Test {
         
         // Score = 0 < 200 threshold (need > 200)
         vm.expectRevert("Insufficient score");
-        drop.claim(proofs);
+        drop.claim(recipient, proofs);
     }
 
     function testClaimExhausted() public {
@@ -411,12 +411,12 @@ contract BringDropByScoreTest is Test {
         });
         
         // First claim should succeed (score = 100 > 50 threshold)
-        smallDrop.claim(proofs);
+        smallDrop.claim(recipient, proofs);
         assertEq(smallDrop.claims(), 1);
         
         // Second claim should fail
         vm.expectRevert("All claims exhausted");
-        smallDrop.claim(proofs);
+        smallDrop.claim(recipient, proofs);
     }
 
     function testClaimInvalidProof() public {
@@ -452,7 +452,7 @@ contract BringDropByScoreTest is Test {
         
         // This should fail because the proof is invalid (member not in group)
         vm.expectRevert();
-        drop.claim(proofs);
+        drop.claim(recipient, proofs);
     }
 
     function testClaimTokenTransferFails() public {
@@ -517,7 +517,7 @@ contract BringDropByScoreTest is Test {
         });
         
         vm.expectRevert("ERC20: transfer amount exceeds balance");
-        emptyDrop.claim(proofs);
+        emptyDrop.claim(recipient, proofs);
     }
 
     function testCannotReuseNullifiers() public {
@@ -640,14 +640,14 @@ contract BringDropByScoreTest is Test {
         
         // First claim (score = 100 + 150 = 250 > 200 threshold)
         vm.prank(recipient1);
-        drop.claim(proofs1);
+        drop.claim(recipient1, proofs1);
         assertEq(token.balanceOf(recipient1), AMOUNT);
         assertEq(drop.claims(), 1);
         
         // Second claim should fail because nullifiers are already used
         vm.expectRevert();
         vm.prank(recipient2);
-        drop.claim(proofs2);
+        drop.claim(recipient2, proofs2);
     }
 
     function testClaimAfterStop() public {
@@ -704,7 +704,7 @@ contract BringDropByScoreTest is Test {
         
         // Claim should fail because drop is stopped
         vm.expectRevert("Campaign stopped");
-        drop.claim(proofs);
+        drop.claim(recipient, proofs);
     }
 
     function testClaimAfterExpiration() public {
@@ -760,7 +760,7 @@ contract BringDropByScoreTest is Test {
         
         // Claim should fail because drop is expired
         vm.expectRevert("Drop has expired");
-        drop.claim(proofs);
+        drop.claim(recipient, proofs);
     }
 
     function testSameUserCannotClaimTwice() public {
@@ -893,14 +893,14 @@ contract BringDropByScoreTest is Test {
         
         // First claim should succeed (score = 100 + 150 + 50 = 300 > 200 threshold)
         vm.prank(recipient);
-        drop.claim(proofs);
+        drop.claim(recipient, proofs);
         assertEq(token.balanceOf(recipient), AMOUNT);
         assertEq(drop.claims(), 1);
         
         // Second claim with same proof should fail (nullifier already used)
         vm.expectRevert();
         vm.prank(recipient);
-        drop.claim(proofs);
+        drop.claim(recipient, proofs);
     }
 
     function testClaimWithInactiveVerification() public {
@@ -937,7 +937,7 @@ contract BringDropByScoreTest is Test {
         
         // Should fail because verification is inactive (skipped by score() with skipInactive=true, results in 0 score)
         vm.expectRevert("Insufficient score");
-        drop.claim(proofs);
+        drop.claim(recipient, proofs);
     }
 
     function testInheritedFunctionality() public {
@@ -1041,14 +1041,14 @@ contract BringDropByScoreTest is Test {
             // Should succeed
             uint256 initialBalance = token.balanceOf(recipient);
             vm.prank(recipient);
-            fuzzDrop.claim(proofs);
+            fuzzDrop.claim(recipient, proofs);
             assertEq(token.balanceOf(recipient), initialBalance + AMOUNT);
             assertEq(fuzzDrop.claims(), 1);
         } else {
             // Should fail with insufficient score
             vm.expectRevert("Insufficient score");
             vm.prank(recipient);
-            fuzzDrop.claim(proofs);
+            fuzzDrop.claim(recipient, proofs);
         }
     }
 }

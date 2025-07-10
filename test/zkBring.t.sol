@@ -177,7 +177,7 @@ contract zkBringTest is Test {
             )
         );
         address recipient = vm.randomAddress();
-        drop.claim(proof, recipient);
+        drop.claim(recipient, proof);
         assertEq(token.balanceOf(recipient), 10);
     }
 }
