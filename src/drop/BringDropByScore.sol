@@ -39,7 +39,7 @@ contract BringDropByScore is BringDropBase {
     ) public notStopped notExpired {
         require(claims < maxClaims, "All claims exhausted");
         uint256 totalScore = registry.score(proofs, true);
-        require(totalScore > scoreThreshold, "Insufficient score");
+        require(totalScore >= scoreThreshold, "Insufficient score");
 
         claims++;
         for (uint256 i; i < proofs.length; i++) {

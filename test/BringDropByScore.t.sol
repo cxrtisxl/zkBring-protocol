@@ -1051,4 +1051,75 @@ contract BringDropByScoreTest is Test {
             fuzzDrop.claim(recipient, proofs);
         }
     }
+
+    function testClaimWithExactlyEqualScore() public {
+        // Create a drop with threshold exactly equal to verification score
+        BringDropByScore equalDrop = new BringDropByScore(
+            150, // Threshold exactly equal to VERIFICATION_ID_2 score
+            IBringRegistry(address(registry)),
+            creator,
+            IERC20(address(token)),
+            AMOUNT,
+            MAX_CLAIMS,
+            expiration,
+            METADATA_HASH,
+            IERC20(address(bringToken))
+        );
+        
+        // Fund the drop
+        vm.prank(user);
+        token.transfer(address(equalDrop), AMOUNT);
+        
+        // Setup user with commitment
+        uint256 commitmentKey = 12345;
+        uint256 commitment = TestUtils.semaphoreCommitment(commitmentKey);
+        
+        // Add member to group with score = 150
+        bytes32 idHash = keccak256("test-id");
+        IBringRegistry.TLSNVerifierMessage memory message = IBringRegistry.TLSNVerifierMessage({
+            registry: address(registry),
+            verificationId: VERIFICATION_ID_2, // Score = 150
+            idHash: idHash,
+            semaphoreIdentityCommitment: commitment
+        });
+        
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
+            tlsnVerifierPrivateKey,
+            keccak256(abi.encode(message)).toEthSignedMessageHash()
+        );
+        
+        registry.joinGroup(message, v, r, s);
+        
+        // Create proof
+        uint256 scope = uint256(keccak256(abi.encode(address(equalDrop), 0)));
+        
+        uint256[] memory commitments = new uint256[](1);
+        commitments[0] = commitment;
+        
+        (
+            uint256 merkleTreeDepth,
+            uint256 merkleTreeRoot,
+            uint256 nullifier,
+            uint256 messageHash,
+            uint256[8] memory points
+        ) = TestUtils.semaphoreProof(commitmentKey, scope, commitments);
+        
+        IBringRegistry.VerificationProof[] memory proofs = new IBringRegistry.VerificationProof[](1);
+        proofs[0] = IBringRegistry.VerificationProof({
+            verificationId: VERIFICATION_ID_2,
+            semaphoreProof: ISemaphore.SemaphoreProof({
+                merkleTreeDepth: merkleTreeDepth,
+                merkleTreeRoot: merkleTreeRoot,
+                nullifier: nullifier,
+                message: messageHash,
+                scope: scope,
+                points: points
+            })
+        });
+        
+        // Should fail because score (150) is NOT > threshold (150)
+        // Business logic requires scoreThreshold < totalScore (strict inequality)
+        vm.expectRevert("Insufficient score");
+        equalDrop.claim(recipient, proofs);
+    }
 }
