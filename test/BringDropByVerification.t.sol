@@ -3,8 +3,8 @@ pragma solidity ^0.8.23;
 
 import {Test, console} from "forge-std/Test.sol";
 import {BringDropByVerification} from "../src/drop/BringDropByVerification.sol";
-import {BringRegistry} from "../src/registry/BringRegistry.sol";
-import {IBringRegistry} from "../src/registry/IBringRegistry.sol";
+import {CredentialRegistry} from "../src/registry/CredentialRegistry.sol";
+import {ICredentialRegistry} from "../src/registry/ICredentialRegistry.sol";
 import {ISemaphore} from "semaphore-protocol/interfaces/ISemaphore.sol";
 import {ISemaphoreVerifier} from "semaphore-protocol/interfaces/ISemaphoreVerifier.sol";
 import {SemaphoreVerifier} from "semaphore-protocol/base/SemaphoreVerifier.sol";
@@ -18,7 +18,7 @@ contract BringDropByVerificationTest is Test {
     using ECDSA for bytes32;
 
     BringDropByVerification drop;
-    BringRegistry registry;
+    CredentialRegistry registry;
     Semaphore semaphore;
     SemaphoreVerifier semaphoreVerifier;
     Token token;
@@ -30,7 +30,7 @@ contract BringDropByVerificationTest is Test {
     address tlsnVerifier;
     uint256 tlsnVerifierPrivateKey;
     
-    uint256 constant VERIFICATION_ID = 1;
+    uint256 constant CREDENTIAL_GROUP_ID = 1;
     uint256 constant AMOUNT = 10 * 10**18;
     uint256 constant MAX_CLAIMS = 100;
     uint256 constant TOKEN_SUPPLY = 1000000 * 10**18;
@@ -53,15 +53,15 @@ contract BringDropByVerificationTest is Test {
         semaphore = new Semaphore(ISemaphoreVerifier(address(semaphoreVerifier)));
         
         // Deploy registry
-        registry = new BringRegistry(ISemaphore(address(semaphore)), tlsnVerifier);
+        registry = new CredentialRegistry(ISemaphore(address(semaphore)), tlsnVerifier);
 
-        // Create verification in registry
-        registry.newVerification(VERIFICATION_ID, 100);
+        // Create credential group in registry
+        registry.createCredentialGroup(CREDENTIAL_GROUP_ID, 100);
 
         // Deploy drop
         drop = new BringDropByVerification(
-            VERIFICATION_ID,
-            IBringRegistry(address(registry)),
+            CREDENTIAL_GROUP_ID,
+            ICredentialRegistry(address(registry)),
             creator,
             IERC20(address(token)),
             AMOUNT,
@@ -77,7 +77,7 @@ contract BringDropByVerificationTest is Test {
     }
 
     function testConstructor() public {
-        assertEq(drop.verificationId(), VERIFICATION_ID);
+        assertEq(drop.credentialGroupId(), CREDENTIAL_GROUP_ID);
         assertEq(address(drop.registry()), address(registry));
         assertEq(address(drop.token()), address(token));
         assertEq(drop.amount(), AMOUNT);
@@ -97,9 +97,9 @@ contract BringDropByVerificationTest is Test {
         
         // Add member to group
         bytes32 idHash = keccak256("test-id");
-        IBringRegistry.TLSNVerifierMessage memory message = IBringRegistry.TLSNVerifierMessage({
+        ICredentialRegistry.Attestation memory message = ICredentialRegistry.Attestation({
             registry: address(registry),
-            verificationId: VERIFICATION_ID,
+            credentialGroupId: CREDENTIAL_GROUP_ID,
             idHash: idHash,
             semaphoreIdentityCommitment: commitment
         });
@@ -125,8 +125,8 @@ contract BringDropByVerificationTest is Test {
             uint256[8] memory points
         ) = TestUtils.semaphoreProof(commitmentKey, scope, commitments);
         
-        IBringRegistry.VerificationProof memory proof = IBringRegistry.VerificationProof({
-            verificationId: VERIFICATION_ID,
+        ICredentialRegistry.CredentialGroupProof memory proof = ICredentialRegistry.CredentialGroupProof({
+            credentialGroupId: CREDENTIAL_GROUP_ID,
             semaphoreProof: ISemaphore.SemaphoreProof({
                 merkleTreeDepth: merkleTreeDepth,
                 merkleTreeRoot: merkleTreeRoot,
@@ -153,9 +153,9 @@ contract BringDropByVerificationTest is Test {
         
         // Add member to group
         bytes32 idHash = keccak256("test-id");
-        IBringRegistry.TLSNVerifierMessage memory message = IBringRegistry.TLSNVerifierMessage({
+        ICredentialRegistry.Attestation memory message = ICredentialRegistry.Attestation({
             registry: address(registry),
-            verificationId: VERIFICATION_ID,
+            credentialGroupId: CREDENTIAL_GROUP_ID,
             idHash: idHash,
             semaphoreIdentityCommitment: commitment
         });
@@ -181,8 +181,8 @@ contract BringDropByVerificationTest is Test {
             uint256[8] memory points
         ) = TestUtils.semaphoreProof(commitmentKey, scope, commitments);
         
-        IBringRegistry.VerificationProof memory proof = IBringRegistry.VerificationProof({
-            verificationId: VERIFICATION_ID + 1, // Wrong verification ID
+        ICredentialRegistry.CredentialGroupProof memory proof = ICredentialRegistry.CredentialGroupProof({
+            credentialGroupId: CREDENTIAL_GROUP_ID + 1, // Wrong verification ID
             semaphoreProof: ISemaphore.SemaphoreProof({
                 merkleTreeDepth: merkleTreeDepth,
                 merkleTreeRoot: merkleTreeRoot,
@@ -193,15 +193,15 @@ contract BringDropByVerificationTest is Test {
             })
         });
         
-        vm.expectRevert("Wrong Verification");
+        vm.expectRevert("Wrong credential group");
         drop.claim(recipient, proof);
     }
 
     function testClaimExhausted() public {
         // Create a drop with max claims = 1
         BringDropByVerification smallDrop = new BringDropByVerification(
-            VERIFICATION_ID,
-            IBringRegistry(address(registry)),
+            CREDENTIAL_GROUP_ID,
+            ICredentialRegistry(address(registry)),
             creator,
             IERC20(address(token)),
             AMOUNT,
@@ -221,9 +221,9 @@ contract BringDropByVerificationTest is Test {
         
         // Add member to group
         bytes32 idHash = keccak256("test-id");
-        IBringRegistry.TLSNVerifierMessage memory message = IBringRegistry.TLSNVerifierMessage({
+        ICredentialRegistry.Attestation memory message = ICredentialRegistry.Attestation({
             registry: address(registry),
-            verificationId: VERIFICATION_ID,
+            credentialGroupId: CREDENTIAL_GROUP_ID,
             idHash: idHash,
             semaphoreIdentityCommitment: commitment
         });
@@ -249,8 +249,8 @@ contract BringDropByVerificationTest is Test {
             uint256[8] memory points
         ) = TestUtils.semaphoreProof(commitmentKey, scope, commitments);
         
-        IBringRegistry.VerificationProof memory proof = IBringRegistry.VerificationProof({
-            verificationId: VERIFICATION_ID,
+        ICredentialRegistry.CredentialGroupProof memory proof = ICredentialRegistry.CredentialGroupProof({
+            credentialGroupId: CREDENTIAL_GROUP_ID,
             semaphoreProof: ISemaphore.SemaphoreProof({
                 merkleTreeDepth: merkleTreeDepth,
                 merkleTreeRoot: merkleTreeRoot,
@@ -288,8 +288,8 @@ contract BringDropByVerificationTest is Test {
             uint256[8] memory points
         ) = TestUtils.semaphoreProof(commitmentKey, scope, commitments);
         
-        IBringRegistry.VerificationProof memory proof = IBringRegistry.VerificationProof({
-            verificationId: VERIFICATION_ID,
+        ICredentialRegistry.CredentialGroupProof memory proof = ICredentialRegistry.CredentialGroupProof({
+            credentialGroupId: CREDENTIAL_GROUP_ID,
             semaphoreProof: ISemaphore.SemaphoreProof({
                 merkleTreeDepth: merkleTreeDepth,
                 merkleTreeRoot: merkleTreeRoot,
@@ -308,8 +308,8 @@ contract BringDropByVerificationTest is Test {
     function testClaimTokenTransferFails() public {
         // Create drop with no token balance
         BringDropByVerification emptyDrop = new BringDropByVerification(
-            VERIFICATION_ID,
-            IBringRegistry(address(registry)),
+            CREDENTIAL_GROUP_ID,
+            ICredentialRegistry(address(registry)),
             creator,
             IERC20(address(token)),
             AMOUNT,
@@ -325,9 +325,9 @@ contract BringDropByVerificationTest is Test {
         
         // Add member to group
         bytes32 idHash = keccak256("test-id");
-        IBringRegistry.TLSNVerifierMessage memory message = IBringRegistry.TLSNVerifierMessage({
+        ICredentialRegistry.Attestation memory message = ICredentialRegistry.Attestation({
             registry: address(registry),
-            verificationId: VERIFICATION_ID,
+            credentialGroupId: CREDENTIAL_GROUP_ID,
             idHash: idHash,
             semaphoreIdentityCommitment: commitment
         });
@@ -353,8 +353,8 @@ contract BringDropByVerificationTest is Test {
             uint256[8] memory points
         ) = TestUtils.semaphoreProof(commitmentKey, scope, commitments);
         
-        IBringRegistry.VerificationProof memory proof = IBringRegistry.VerificationProof({
-            verificationId: VERIFICATION_ID,
+        ICredentialRegistry.CredentialGroupProof memory proof = ICredentialRegistry.CredentialGroupProof({
+            credentialGroupId: CREDENTIAL_GROUP_ID,
             semaphoreProof: ISemaphore.SemaphoreProof({
                 merkleTreeDepth: merkleTreeDepth,
                 merkleTreeRoot: merkleTreeRoot,
@@ -375,9 +375,9 @@ contract BringDropByVerificationTest is Test {
         uint256 commitment1 = TestUtils.semaphoreCommitment(commitmentKey1);
         
         bytes32 idHash1 = keccak256("test-id-1");
-        IBringRegistry.TLSNVerifierMessage memory message1 = IBringRegistry.TLSNVerifierMessage({
+        ICredentialRegistry.Attestation memory message1 = ICredentialRegistry.Attestation({
             registry: address(registry),
-            verificationId: VERIFICATION_ID,
+            credentialGroupId: CREDENTIAL_GROUP_ID,
             idHash: idHash1,
             semaphoreIdentityCommitment: commitment1
         });
@@ -394,9 +394,9 @@ contract BringDropByVerificationTest is Test {
         uint256 commitment2 = TestUtils.semaphoreCommitment(commitmentKey2);
         
         bytes32 idHash2 = keccak256("test-id-2");
-        IBringRegistry.TLSNVerifierMessage memory message2 = IBringRegistry.TLSNVerifierMessage({
+        ICredentialRegistry.Attestation memory message2 = ICredentialRegistry.Attestation({
             registry: address(registry),
-            verificationId: VERIFICATION_ID,
+            credentialGroupId: CREDENTIAL_GROUP_ID,
             idHash: idHash2,
             semaphoreIdentityCommitment: commitment2
         });
@@ -435,8 +435,8 @@ contract BringDropByVerificationTest is Test {
             uint256[8] memory points2
         ) = TestUtils.semaphoreProof(commitmentKey2, scope, commitments2);
         
-        IBringRegistry.VerificationProof memory proof1 = IBringRegistry.VerificationProof({
-            verificationId: VERIFICATION_ID,
+        ICredentialRegistry.CredentialGroupProof memory proof1 = ICredentialRegistry.CredentialGroupProof({
+            credentialGroupId: CREDENTIAL_GROUP_ID,
             semaphoreProof: ISemaphore.SemaphoreProof({
                 merkleTreeDepth: merkleTreeDepth1,
                 merkleTreeRoot: merkleTreeRoot1,
@@ -447,8 +447,8 @@ contract BringDropByVerificationTest is Test {
             })
         });
         
-        IBringRegistry.VerificationProof memory proof2 = IBringRegistry.VerificationProof({
-            verificationId: VERIFICATION_ID,
+        ICredentialRegistry.CredentialGroupProof memory proof2 = ICredentialRegistry.CredentialGroupProof({
+            credentialGroupId: CREDENTIAL_GROUP_ID,
             semaphoreProof: ISemaphore.SemaphoreProof({
                 merkleTreeDepth: merkleTreeDepth2,
                 merkleTreeRoot: merkleTreeRoot2,
@@ -482,9 +482,9 @@ contract BringDropByVerificationTest is Test {
         
         // Add member to group
         bytes32 idHash = keccak256(abi.encode(commitmentKey));
-        IBringRegistry.TLSNVerifierMessage memory message = IBringRegistry.TLSNVerifierMessage({
+        ICredentialRegistry.Attestation memory message = ICredentialRegistry.Attestation({
             registry: address(registry),
-            verificationId: VERIFICATION_ID,
+            credentialGroupId: CREDENTIAL_GROUP_ID,
             idHash: idHash,
             semaphoreIdentityCommitment: commitment
         });
@@ -510,8 +510,8 @@ contract BringDropByVerificationTest is Test {
             uint256[8] memory points
         ) = TestUtils.semaphoreProof(commitmentKey, scope, commitments);
         
-        IBringRegistry.VerificationProof memory proof = IBringRegistry.VerificationProof({
-            verificationId: VERIFICATION_ID,
+        ICredentialRegistry.CredentialGroupProof memory proof = ICredentialRegistry.CredentialGroupProof({
+            credentialGroupId: CREDENTIAL_GROUP_ID,
             semaphoreProof: ISemaphore.SemaphoreProof({
                 merkleTreeDepth: merkleTreeDepth,
                 merkleTreeRoot: merkleTreeRoot,
@@ -572,9 +572,9 @@ contract BringDropByVerificationTest is Test {
         
         // Add member to group
         bytes32 idHash = keccak256("test-id");
-        IBringRegistry.TLSNVerifierMessage memory message = IBringRegistry.TLSNVerifierMessage({
+        ICredentialRegistry.Attestation memory message = ICredentialRegistry.Attestation({
             registry: address(registry),
-            verificationId: VERIFICATION_ID,
+            credentialGroupId: CREDENTIAL_GROUP_ID,
             idHash: idHash,
             semaphoreIdentityCommitment: commitment
         });
@@ -600,8 +600,8 @@ contract BringDropByVerificationTest is Test {
             uint256[8] memory points
         ) = TestUtils.semaphoreProof(commitmentKey, scope, commitments);
         
-        IBringRegistry.VerificationProof memory proof = IBringRegistry.VerificationProof({
-            verificationId: VERIFICATION_ID,
+        ICredentialRegistry.CredentialGroupProof memory proof = ICredentialRegistry.CredentialGroupProof({
+            credentialGroupId: CREDENTIAL_GROUP_ID,
             semaphoreProof: ISemaphore.SemaphoreProof({
                 merkleTreeDepth: merkleTreeDepth,
                 merkleTreeRoot: merkleTreeRoot,
@@ -624,9 +624,9 @@ contract BringDropByVerificationTest is Test {
         
         // Add member to group
         bytes32 idHash = keccak256("test-id");
-        IBringRegistry.TLSNVerifierMessage memory message = IBringRegistry.TLSNVerifierMessage({
+        ICredentialRegistry.Attestation memory message = ICredentialRegistry.Attestation({
             registry: address(registry),
-            verificationId: VERIFICATION_ID,
+            credentialGroupId: CREDENTIAL_GROUP_ID,
             idHash: idHash,
             semaphoreIdentityCommitment: commitment
         });
@@ -652,8 +652,8 @@ contract BringDropByVerificationTest is Test {
             uint256[8] memory points
         ) = TestUtils.semaphoreProof(commitmentKey, scope, commitments);
         
-        IBringRegistry.VerificationProof memory proof = IBringRegistry.VerificationProof({
-            verificationId: VERIFICATION_ID,
+        ICredentialRegistry.CredentialGroupProof memory proof = ICredentialRegistry.CredentialGroupProof({
+            credentialGroupId: CREDENTIAL_GROUP_ID,
             semaphoreProof: ISemaphore.SemaphoreProof({
                 merkleTreeDepth: merkleTreeDepth,
                 merkleTreeRoot: merkleTreeRoot,

@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 import {Script, console} from "forge-std/Script.sol";
-import { IBringRegistry as IRegistry } from "../src/registry/IBringRegistry.sol";
+import { ICredentialRegistry as IRegistry } from "../src/registry/ICredentialRegistry.sol";
 import {ECDSA} from "openzeppelin/utils/cryptography/ECDSA.sol";
 
 contract Generate is Script {
     using ECDSA for bytes32;
 
     function run() public {
-        IRegistry.TLSNVerifierMessage memory verifierMessage = IRegistry.TLSNVerifierMessage({
+        IRegistry.Attestation memory verifierMessage = IRegistry.Attestation({
             registry: vm.envAddress("REGISTRY"),
-            verificationId: vm.envUint("VERIFICATION_ID"),
+            credentialGroupId: vm.envUint("CREDENTIAL_GROUP_ID"),
             idHash: vm.envBytes32("ID_HASH"),
             semaphoreIdentityCommitment: vm.envUint("COMMITMENT")
         });
@@ -28,7 +28,7 @@ contract Generate is Script {
             string.concat("Registry:\t", vm.toString(verifierMessage.registry))
         );
         console.log(
-            string.concat("Ver. Id:\t", vm.toString(verifierMessage.verificationId))
+            string.concat("Cred. Group Id:\t", vm.toString(verifierMessage.credentialGroupId))
         );
         console.log(
             string.concat("IdHash:\t", vm.toString(verifierMessage.idHash))

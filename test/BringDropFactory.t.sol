@@ -4,8 +4,8 @@ pragma solidity ^0.8.23;
 import {Test, console} from "forge-std/Test.sol";
 import {BringDropFactory} from "../src/drop/BringDropFactory.sol";
 import {BringDropByScore} from "../src/drop/BringDropByScore.sol";
-import {BringRegistry} from "../src/registry/BringRegistry.sol";
-import {IBringRegistry} from "../src/registry/IBringRegistry.sol";
+import {CredentialRegistry} from "../src/registry/CredentialRegistry.sol";
+import {ICredentialRegistry} from "../src/registry/ICredentialRegistry.sol";
 import {ISemaphore} from "semaphore-protocol/interfaces/ISemaphore.sol";
 import {ISemaphoreVerifier} from "semaphore-protocol/interfaces/ISemaphoreVerifier.sol";
 import {SemaphoreVerifier} from "semaphore-protocol/base/SemaphoreVerifier.sol";
@@ -15,7 +15,7 @@ import {IERC20} from "openzeppelin/token/ERC20/IERC20.sol";
 
 contract BringDropFactoryTest is Test {
     BringDropFactory factory;
-    BringRegistry registry;
+    CredentialRegistry registry;
     Token token;
     Token bringToken;
     
@@ -52,7 +52,7 @@ contract BringDropFactoryTest is Test {
         
         // Deploy registry
         address tlsnVerifier = makeAddr("tlsn-verifier");
-        registry = new BringRegistry(ISemaphore(address(semaphore)), tlsnVerifier);
+        registry = new CredentialRegistry(ISemaphore(address(semaphore)), tlsnVerifier);
         
         // Deploy factory
         factory = new BringDropFactory(INITIAL_FEE, feeRecipient, IERC20(address(bringToken)));
@@ -91,7 +91,7 @@ contract BringDropFactoryTest is Test {
         );
         
         address dropAddress = factory.createDropByScore(
-            IBringRegistry(address(registry)),
+            ICredentialRegistry(address(registry)),
             scoreThreshold,
             IERC20(address(token)),
             amount,
@@ -136,7 +136,7 @@ contract BringDropFactoryTest is Test {
         
         vm.expectRevert("ERC20: insufficient allowance");
         factory.createDropByScore(
-            IBringRegistry(address(registry)),
+            ICredentialRegistry(address(registry)),
             scoreThreshold,
             IERC20(address(token)),
             amount,
@@ -164,7 +164,7 @@ contract BringDropFactoryTest is Test {
         token.approve(address(zeroFeeFactory), totalDistribution);
         
         address dropAddress = zeroFeeFactory.createDropByScore(
-            IBringRegistry(address(registry)),
+            ICredentialRegistry(address(registry)),
             scoreThreshold,
             IERC20(address(token)),
             amount,
@@ -202,7 +202,7 @@ contract BringDropFactoryTest is Test {
         token.approve(address(factory), totalDistribution + feeAmount);
         
         address dropAddress = factory.createDropByScore(
-            IBringRegistry(address(registry)),
+            ICredentialRegistry(address(registry)),
             scoreThreshold,
             IERC20(address(token)),
             amount,
@@ -280,7 +280,7 @@ contract BringDropFactoryTest is Test {
         token.approve(address(factory), totalDistribution + feeAmount);
         
         address dropAddress = factory.createDropByScore(
-            IBringRegistry(address(registry)),
+            ICredentialRegistry(address(registry)),
             scoreThreshold,
             IERC20(address(token)),
             amount,
@@ -310,7 +310,7 @@ contract BringDropFactoryTest is Test {
         vm.startPrank(user);
         vm.expectRevert("ERC20: insufficient allowance");
         factory.createDropByScore(
-            IBringRegistry(address(registry)),
+            ICredentialRegistry(address(registry)),
             scoreThreshold,
             IERC20(address(token)),
             amount,
@@ -341,7 +341,7 @@ contract BringDropFactoryTest is Test {
         
         vm.expectRevert("ERC20: insufficient allowance");
         factory.createDropByScore(
-            IBringRegistry(address(registry)),
+            ICredentialRegistry(address(registry)),
             scoreThreshold,
             IERC20(address(token)),
             amount,
@@ -367,7 +367,7 @@ contract BringDropFactoryTest is Test {
         token.approve(address(factory), totalDistribution + feeAmount);
         
         address dropAddress1 = factory.createDropByScore(
-            IBringRegistry(address(registry)),
+            ICredentialRegistry(address(registry)),
             scoreThreshold,
             IERC20(address(token)),
             amount,
@@ -380,7 +380,7 @@ contract BringDropFactoryTest is Test {
         token.approve(address(factory), totalDistribution + feeAmount);
         
         address dropAddress2 = factory.createDropByScore(
-            IBringRegistry(address(registry)),
+            ICredentialRegistry(address(registry)),
             scoreThreshold + 50,
             IERC20(address(token)),
             amount,
@@ -414,7 +414,7 @@ contract BringDropFactoryTest is Test {
     function testCreateDropShouldRejectZeroAmount() public {
         vm.expectRevert();
         factory.createDropByScore(
-            IBringRegistry(address(registry)),
+            ICredentialRegistry(address(registry)),
             100,
             IERC20(address(token)),
             0, // Zero amount - should be rejected!
@@ -427,7 +427,7 @@ contract BringDropFactoryTest is Test {
     function testCreateDropShouldRejectZeroMaxClaims() public {
         vm.expectRevert();
         factory.createDropByScore(
-            IBringRegistry(address(registry)),
+            ICredentialRegistry(address(registry)),
             100,
             IERC20(address(token)),
             10 * 10**18,
@@ -442,7 +442,7 @@ contract BringDropFactoryTest is Test {
         vm.warp(1000 days);
         
         try factory.createDropByScore(
-            IBringRegistry(address(registry)),
+            ICredentialRegistry(address(registry)),
             100,
             IERC20(address(token)),
             10 * 10**18,

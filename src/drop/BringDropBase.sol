@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {IBringRegistry} from "../registry/IBringRegistry.sol";
+import {ICredentialRegistry} from "../registry/ICredentialRegistry.sol";
 import {Ownable2Step} from "openzeppelin/access/Ownable2Step.sol";
 import {IERC20} from "openzeppelin/token/ERC20/IERC20.sol";
 import "./Events.sol";
 
 abstract contract BringDropBase is Ownable2Step {
     // Drop configuration
-    IBringRegistry public immutable registry;
+    ICredentialRegistry public immutable registry;
     IERC20 public immutable token;
     uint256 public immutable amount; // Amount per claim
     uint256 public immutable maxClaims; // Maximum number of claims allowed
@@ -34,7 +34,7 @@ abstract contract BringDropBase is Ownable2Step {
      * @notice Constructor sets the drop parameters and transfers ownership to the creator.
      */
     constructor(
-        IBringRegistry registry_,
+        ICredentialRegistry registry_,
         address creator_,
         IERC20 token_,
         uint256 amount_,

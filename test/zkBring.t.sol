@@ -5,8 +5,8 @@ import {ISemaphoreVerifier} from "semaphore-protocol/interfaces/ISemaphoreVerifi
 import {ISemaphore} from "semaphore-protocol/interfaces/ISemaphore.sol";
 import {SemaphoreVerifier} from "semaphore-protocol/base/SemaphoreVerifier.sol";
 import {Semaphore} from "semaphore-protocol/Semaphore.sol";
-import {BringRegistry} from "../src/registry/BringRegistry.sol";
-import {IBringRegistry as IRegistry} from "../src/registry/IBringRegistry.sol";
+import {CredentialRegistry} from "../src/registry/CredentialRegistry.sol";
+import {ICredentialRegistry as IRegistry} from "../src/registry/ICredentialRegistry.sol";
 import {Test, console} from "forge-std/Test.sol";
 import {BringDropFactory} from "../src/drop/BringDropFactory.sol";
 import {ECDSA} from "openzeppelin/utils/cryptography/ECDSA.sol";
@@ -25,7 +25,7 @@ contract zkBringTest is Test {
     SemaphoreVerifier private semaphoreVerifier;
     Semaphore private semaphore;
 
-    BringRegistry private registry;
+    CredentialRegistry private registry;
     BringDropFactory private dropFactory;
     TLSNVerifier private tlsnVerifier;
     Token private token;
@@ -37,7 +37,7 @@ contract zkBringTest is Test {
 
         semaphoreVerifier = new SemaphoreVerifier();
         semaphore = new Semaphore(ISemaphoreVerifier(address(semaphoreVerifier)));
-        registry = new BringRegistry(ISemaphore(address(semaphore)), tlsnVerifier.addr);
+        registry = new CredentialRegistry(ISemaphore(address(semaphore)), tlsnVerifier.addr);
         bringToken = new Token("Bring", "BRING", address(this), 10000);
         token = new Token("Testo", "TESTO", address(this), 10000);
     }
@@ -45,13 +45,13 @@ contract zkBringTest is Test {
     // @notice verifies user data, generates commitment and adds it to Registry
     function verify(
         address commitmentSender_,
-        uint256 verificationId_,
+        uint256 credentialGroupId_,
         bytes32 idHash_,
         uint256 semaphoreIdentityCommitment
     ) public {
-        IRegistry.TLSNVerifierMessage memory verifierMessage = IRegistry.TLSNVerifierMessage({
+        IRegistry.Attestation memory verifierMessage = IRegistry.Attestation({
             registry: address(registry),
-            verificationId: verificationId_,
+            credentialGroupId: credentialGroupId_,
             idHash: idHash_, // Random identity
             semaphoreIdentityCommitment: semaphoreIdentityCommitment
         });
@@ -67,19 +67,19 @@ contract zkBringTest is Test {
     }
 
     function testVerification() public {
-        uint256 verificationId = vm.randomUint();
-        registry.newVerification(verificationId, 10); // Creating a new Verefication
+        uint256 credentialGroupId = vm.randomUint();
+        registry.createCredentialGroup(credentialGroupId, 10); // Creating a new CredentialGroup
         verify(
             vm.randomAddress(), // Calling from a random address (drop contract / DAO voting contract etc.)
-            verificationId,
+            credentialGroupId,
             keccak256(vm.randomBytes(32)),
             TestUtils.semaphoreCommitment(vm.randomUint())
         );
     }
 
     function testValidation() public {
-        uint256 verificationId = vm.randomUint();
-        registry.newVerification(verificationId, 10); // Creating a new Verefication
+        uint256 credentialGroupId = vm.randomUint();
+        registry.createCredentialGroup(credentialGroupId, 10); // Creating a new Verefication
 
         uint256 commitmentKey = vm.randomUint();
         uint256[] memory commitments = new uint256[](1);
@@ -89,7 +89,7 @@ contract zkBringTest is Test {
 
         verify(
             sender, // Calling from a random address (Relayer)
-            verificationId,
+            credentialGroupId,
             keccak256(vm.randomBytes(32)),
             commitments[0]
         );
@@ -108,8 +108,8 @@ contract zkBringTest is Test {
             commitments
         );
 
-        IRegistry.VerificationProof memory proof = IRegistry.VerificationProof(
-            verificationId,
+        IRegistry.CredentialGroupProof memory proof = IRegistry.CredentialGroupProof(
+            credentialGroupId,
             ISemaphore.SemaphoreProof(
                 merkleTreeDepth,
                 merkleTreeRoot,
@@ -125,10 +125,10 @@ contract zkBringTest is Test {
 
     function testClaim() public {
         address sender = vm.randomAddress(); // e.g. Relayer or "someone"
-        uint256 verificationId = vm.randomUint();
-        registry.newVerification(verificationId, 10); // Creating a new Verefication
+        uint256 credentialGroupId = vm.randomUint();
+        registry.createCredentialGroup(credentialGroupId, 10); // Creating a new Verefication
         drop = new BringDropByVerification(
-            verificationId,
+            credentialGroupId,
             registry,
             address(sender),
             token,
@@ -146,7 +146,7 @@ contract zkBringTest is Test {
 
         verify(
             sender, // Calling from a random address (Relayer)
-            verificationId,
+            credentialGroupId,
             keccak256(vm.randomBytes(32)),
             commitments[0]
         );
@@ -165,8 +165,8 @@ contract zkBringTest is Test {
             commitments
         );
 
-        IRegistry.VerificationProof memory proof = IRegistry.VerificationProof(
-            verificationId,
+        IRegistry.CredentialGroupProof memory proof = IRegistry.CredentialGroupProof(
+            credentialGroupId,
             ISemaphore.SemaphoreProof(
                 merkleTreeDepth,
                 merkleTreeRoot,

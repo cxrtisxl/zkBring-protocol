@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-// zkBringDropFactory events
+// BringDropFactory events
 event DropCreated(
     address indexed creator,
     address indexed drop,
@@ -15,7 +15,7 @@ event DropCreated(
 event FeeUpdated(uint256 newFee);
 event FeeRecipientUpdated(address newFeeRecipient);
 
-// zkBringDrop events
+// BringDrop events
 event MetadataUpdated(string metadataIpfsHash);
 event BringStaked(address bringToken, uint256 amount, uint256 totalStaked);
 event zkPassSchemaIdUpdated(bytes32 zkPassSchemaId);

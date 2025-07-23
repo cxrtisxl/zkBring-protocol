@@ -3,7 +3,7 @@ pragma solidity ^0.8.23;
 
 import {IERC20} from "openzeppelin/token/ERC20/IERC20.sol";
 import {Ownable2Step} from "openzeppelin/access/Ownable2Step.sol";
-import {IBringRegistry} from "../registry/IBringRegistry.sol";
+import {ICredentialRegistry} from "../registry/ICredentialRegistry.sol";
 import {BringDropByScore} from "./BringDropByScore.sol";
 import "./Events.sol";
 
@@ -24,7 +24,7 @@ contract BringDropFactory is Ownable2Step {
      * @return dropAddress The address of the newly created drop.
      */
     function createDropByScore(
-        IBringRegistry registry_,
+        ICredentialRegistry registry_,
         uint256 scoreThreshold_,
         IERC20 token_,
         uint256 amount_,

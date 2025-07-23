@@ -2,8 +2,8 @@
 pragma solidity ^0.8.23;
 
 import {Test, console} from "forge-std/Test.sol";
-import {BringRegistry} from "../src/registry/BringRegistry.sol";
-import {IBringRegistry} from "../src/registry/IBringRegistry.sol";
+import {CredentialRegistry} from "../src/registry/CredentialRegistry.sol";
+import {ICredentialRegistry} from "../src/registry/ICredentialRegistry.sol";
 import {ISemaphore} from "semaphore-protocol/interfaces/ISemaphore.sol";
 import {ISemaphoreVerifier} from "semaphore-protocol/interfaces/ISemaphoreVerifier.sol";
 import {SemaphoreVerifier} from "semaphore-protocol/base/SemaphoreVerifier.sol";
@@ -11,10 +11,10 @@ import {Semaphore} from "semaphore-protocol/Semaphore.sol";
 import {ECDSA} from "openzeppelin/utils/cryptography/ECDSA.sol";
 import {TestUtils} from "./TestUtils.sol";
 
-contract BringRegistryTest is Test {
+contract CredentialRegistryTest is Test {
     using ECDSA for bytes32;
 
-    BringRegistry registry;
+    CredentialRegistry registry;
     Semaphore semaphore;
     SemaphoreVerifier semaphoreVerifier;
     
@@ -22,9 +22,9 @@ contract BringRegistryTest is Test {
     address tlsnVerifier;
     uint256 tlsnVerifierPrivateKey;
     
-    event VerificationCreated(uint256 indexed verificationId, IBringRegistry.Verification verification);
-    event Verified(uint256 indexed verificationId, uint256 indexed commitment);
-    event Proved(uint256 indexed verificationId);
+    event CredentialGroupCreated(uint256 indexed credentialGroupId, ICredentialRegistry.CredentialGroup credentialGroup);
+    event CredentialAdded(uint256 indexed credentialGroupId, uint256 indexed commitment);
+    event ProofValidated(uint256 indexed credentialGroupId);
     event TLSNVerifierSet(address indexed verifier);
 
     function setUp() public {
@@ -33,7 +33,7 @@ contract BringRegistryTest is Test {
         
         semaphoreVerifier = new SemaphoreVerifier();
         semaphore = new Semaphore(ISemaphoreVerifier(address(semaphoreVerifier)));
-        registry = new BringRegistry(ISemaphore(address(semaphore)), tlsnVerifier);
+        registry = new CredentialRegistry(ISemaphore(address(semaphore)), tlsnVerifier);
     }
 
     function testConstructor() public {
@@ -42,69 +42,69 @@ contract BringRegistryTest is Test {
         assertEq(registry.owner(), owner);
     }
 
-    function testNewVerification() public {
-        uint256 verificationId = 1;
+    function testCreateCredentialGroup() public {
+        uint256 credentialGroupId = 1;
         uint256 score = 100;
         
         vm.expectEmit(true, false, false, true);
-        emit VerificationCreated(verificationId, IBringRegistry.Verification(score, 0, IBringRegistry.VerificationStatus.ACTIVE));
+        emit CredentialGroupCreated(credentialGroupId, ICredentialRegistry.CredentialGroup(score, 0, ICredentialRegistry.CredentialGroupStatus.ACTIVE));
         
-        registry.newVerification(verificationId, score);
+        registry.createCredentialGroup(credentialGroupId, score);
         
-        (uint256 storedScore, uint256 groupId, IBringRegistry.VerificationStatus status) = registry.verifications(verificationId);
+        (uint256 storedScore, uint256 groupId, ICredentialRegistry.CredentialGroupStatus status) = registry.credentialGroups(credentialGroupId);
         assertEq(storedScore, score);
         assertTrue(groupId >= 0); // Group ID should exist (can be 0 for first group)
-        assertEq(uint256(status), uint256(IBringRegistry.VerificationStatus.ACTIVE));
+        assertEq(uint256(status), uint256(ICredentialRegistry.CredentialGroupStatus.ACTIVE));
     }
 
-    function testNewVerificationOnlyOwner() public {
+    function testCreateCredentialGroupOnlyOwner() public {
         address notOwner = makeAddr("not-owner");
         
         vm.prank(notOwner);
         vm.expectRevert("Ownable: caller is not the owner");
-        registry.newVerification(1, 100);
+        registry.createCredentialGroup(1, 100);
     }
 
-    function testNewVerificationDuplicate() public {
-        uint256 verificationId = 1;
+    function testCreateCredentialGroupDuplicate() public {
+        uint256 credentialGroupId = 1;
         
-        registry.newVerification(verificationId, 100);
+        registry.createCredentialGroup(credentialGroupId, 100);
         
-        vm.expectRevert("Verification exists");
-        registry.newVerification(verificationId, 200);
+        vm.expectRevert("Credential group exists");
+        registry.createCredentialGroup(credentialGroupId, 200);
     }
 
-    function testNewVerificationWithZeroScore() public {
-        uint256 verificationId = 1;
+    function testCreateCredentialGroupWithZeroScore() public {
+        uint256 credentialGroupId = 1;
         uint256 score = 0; // Zero score should be allowed
         
         vm.expectEmit(true, false, false, true);
-        emit VerificationCreated(verificationId, IBringRegistry.Verification(score, 0, IBringRegistry.VerificationStatus.ACTIVE));
+        emit CredentialGroupCreated(credentialGroupId, ICredentialRegistry.CredentialGroup(score, 0, ICredentialRegistry.CredentialGroupStatus.ACTIVE));
         
-        registry.newVerification(verificationId, score);
+        registry.createCredentialGroup(credentialGroupId, score);
         
-        (uint256 storedScore, uint256 groupId, IBringRegistry.VerificationStatus status) = registry.verifications(verificationId);
+        (uint256 storedScore, uint256 groupId, ICredentialRegistry.CredentialGroupStatus status) = registry.credentialGroups(credentialGroupId);
         assertEq(storedScore, 0); // Zero score should be stored correctly
         assertTrue(groupId >= 0); // Group ID should exist (can be 0 for first group)
-        assertEq(uint256(status), uint256(IBringRegistry.VerificationStatus.ACTIVE));
+        assertEq(uint256(status), uint256(ICredentialRegistry.CredentialGroupStatus.ACTIVE));
     }
 
-    function testFuzzNewVerification(uint256 verificationId, uint256 score) public {
+    function testFuzzNewVerification(uint256 credentialGroupId, uint256 score) public {
         // Allow score to be 0 - sometimes verification is needed without affecting score
-        vm.assume(verificationId != 0 && verificationId < type(uint256).max);
+        vm.assume(credentialGroupId != 0 && credentialGroupId < type(uint256).max);
         vm.assume(score < type(uint256).max); // Include score = 0
         
-        registry.newVerification(verificationId, score);
+        registry.createCredentialGroup(credentialGroupId, score);
         
-        (uint256 storedScore, uint256 groupId, IBringRegistry.VerificationStatus status) = registry.verifications(verificationId);
+        (uint256 storedScore, uint256 groupId, ICredentialRegistry.CredentialGroupStatus status) = registry.credentialGroups(credentialGroupId);
         assertEq(storedScore, score);
         assertTrue(groupId >= 0); // Group ID should exist (can be 0 for first group)
-        assertEq(uint256(status), uint256(IBringRegistry.VerificationStatus.ACTIVE));
+        assertEq(uint256(status), uint256(ICredentialRegistry.CredentialGroupStatus.ACTIVE));
     }
 
-    function testNewVerificationShouldRejectZeroId() public {
+    function testCreateCredentialGroupShouldRejectZeroId() public {
         vm.expectRevert();
-        registry.newVerification(0, 100);
+        registry.createCredentialGroup(0, 100);
     }
 
     function testSetVerifierShouldRejectZeroAddress() public {
@@ -131,16 +131,16 @@ contract BringRegistryTest is Test {
     }
 
     function testJoinGroup() public {
-        uint256 verificationId = 1;
+        uint256 credentialGroupId = 1;
         uint256 score = 100;
-        registry.newVerification(verificationId, score);
+        registry.createCredentialGroup(credentialGroupId, score);
         
         bytes32 idHash = keccak256("test-id");
         uint256 commitment = TestUtils.semaphoreCommitment(12345);
         
-        IBringRegistry.TLSNVerifierMessage memory message = IBringRegistry.TLSNVerifierMessage({
+        ICredentialRegistry.Attestation memory message = ICredentialRegistry.Attestation({
             registry: address(registry),
-            verificationId: verificationId,
+            credentialGroupId: credentialGroupId,
             idHash: idHash,
             semaphoreIdentityCommitment: commitment
         });
@@ -151,22 +151,22 @@ contract BringRegistryTest is Test {
         );
         
         vm.expectEmit(true, false, false, true);
-        emit Verified(verificationId, commitment);
+        emit CredentialAdded(credentialGroupId, commitment);
         
         registry.joinGroup(message, v, r, s);
     }
 
     function testJoinGroupWithBytes() public {
-        uint256 verificationId = 1;
+        uint256 credentialGroupId = 1;
         uint256 score = 100;
-        registry.newVerification(verificationId, score);
+        registry.createCredentialGroup(credentialGroupId, score);
         
         bytes32 idHash = keccak256("test-id");
         uint256 commitment = TestUtils.semaphoreCommitment(12345);
         
-        IBringRegistry.TLSNVerifierMessage memory message = IBringRegistry.TLSNVerifierMessage({
+        ICredentialRegistry.Attestation memory message = ICredentialRegistry.Attestation({
             registry: address(registry),
-            verificationId: verificationId,
+            credentialGroupId: credentialGroupId,
             idHash: idHash,
             semaphoreIdentityCommitment: commitment
         });
@@ -179,19 +179,19 @@ contract BringRegistryTest is Test {
         bytes memory signature = abi.encodePacked(r, s, v);
         
         vm.expectEmit(true, false, false, true);
-        emit Verified(verificationId, commitment);
+        emit CredentialAdded(credentialGroupId, commitment);
         
         registry.joinGroup(message, signature);
     }
 
     function testJoinGroupInactiveVerification() public {
-        uint256 verificationId = 1;
+        uint256 credentialGroupId = 1;
         bytes32 idHash = keccak256("test-id");
         uint256 commitment = TestUtils.semaphoreCommitment(12345);
         
-        IBringRegistry.TLSNVerifierMessage memory message = IBringRegistry.TLSNVerifierMessage({
+        ICredentialRegistry.Attestation memory message = ICredentialRegistry.Attestation({
             registry: address(registry),
-            verificationId: verificationId,
+            credentialGroupId: credentialGroupId,
             idHash: idHash,
             semaphoreIdentityCommitment: commitment
         });
@@ -201,20 +201,20 @@ contract BringRegistryTest is Test {
             keccak256(abi.encode(message)).toEthSignedMessageHash()
         );
         
-        vm.expectRevert("Verification is inactive");
+        vm.expectRevert("Credential group is inactive");
         registry.joinGroup(message, v, r, s);
     }
 
     function testJoinGroupWrongRegistry() public {
-        uint256 verificationId = 1;
-        registry.newVerification(verificationId, 100);
+        uint256 credentialGroupId = 1;
+        registry.createCredentialGroup(credentialGroupId, 100);
         
         bytes32 idHash = keccak256("test-id");
         uint256 commitment = TestUtils.semaphoreCommitment(12345);
         
-        IBringRegistry.TLSNVerifierMessage memory message = IBringRegistry.TLSNVerifierMessage({
+        ICredentialRegistry.Attestation memory message = ICredentialRegistry.Attestation({
             registry: address(0x123),
-            verificationId: verificationId,
+            credentialGroupId: credentialGroupId,
             idHash: idHash,
             semaphoreIdentityCommitment: commitment
         });
@@ -224,20 +224,20 @@ contract BringRegistryTest is Test {
             keccak256(abi.encode(message)).toEthSignedMessageHash()
         );
         
-        vm.expectRevert("Wrong Verifier message");
+        vm.expectRevert("Wrong attestation message");
         registry.joinGroup(message, v, r, s);
     }
 
     function testJoinGroupUsedNonce() public {
-        uint256 verificationId = 1;
-        registry.newVerification(verificationId, 100);
+        uint256 credentialGroupId = 1;
+        registry.createCredentialGroup(credentialGroupId, 100);
         
         bytes32 idHash = keccak256("test-id");
         uint256 commitment = TestUtils.semaphoreCommitment(12345);
         
-        IBringRegistry.TLSNVerifierMessage memory message = IBringRegistry.TLSNVerifierMessage({
+        ICredentialRegistry.Attestation memory message = ICredentialRegistry.Attestation({
             registry: address(registry),
-            verificationId: verificationId,
+            credentialGroupId: credentialGroupId,
             idHash: idHash,
             semaphoreIdentityCommitment: commitment
         });
@@ -254,17 +254,17 @@ contract BringRegistryTest is Test {
     }
 
     function testJoinGroupUsedNonceWithDifferentCommitment() public {
-        uint256 verificationId = 1;
-        registry.newVerification(verificationId, 100);
+        uint256 credentialGroupId = 1;
+        registry.createCredentialGroup(credentialGroupId, 100);
         
         bytes32 idHash = keccak256("test-id");
         uint256 commitment1 = TestUtils.semaphoreCommitment(12345);
         uint256 commitment2 = TestUtils.semaphoreCommitment(67890); // Different commitment
         
         // First message with commitment1
-        IBringRegistry.TLSNVerifierMessage memory message1 = IBringRegistry.TLSNVerifierMessage({
+        ICredentialRegistry.Attestation memory message1 = ICredentialRegistry.Attestation({
             registry: address(registry),
-            verificationId: verificationId,
+            credentialGroupId: credentialGroupId,
             idHash: idHash, // Same idHash
             semaphoreIdentityCommitment: commitment1
         });
@@ -277,10 +277,10 @@ contract BringRegistryTest is Test {
         // First join should succeed
         registry.joinGroup(message1, v1, r1, s1);
         
-        // Second message with same registry, verificationId, idHash but different commitment
-        IBringRegistry.TLSNVerifierMessage memory message2 = IBringRegistry.TLSNVerifierMessage({
+        // Second message with same registry, credentialGroupId, idHash but different commitment
+        ICredentialRegistry.Attestation memory message2 = ICredentialRegistry.Attestation({
             registry: address(registry),
-            verificationId: verificationId,
+            credentialGroupId: credentialGroupId,
             idHash: idHash, // Same idHash - this is the key point
             semaphoreIdentityCommitment: commitment2 // Different commitment
         });
@@ -296,15 +296,15 @@ contract BringRegistryTest is Test {
     }
 
     function testJoinGroupInvalidSignature() public {
-        uint256 verificationId = 1;
-        registry.newVerification(verificationId, 100);
+        uint256 credentialGroupId = 1;
+        registry.createCredentialGroup(credentialGroupId, 100);
         
         bytes32 idHash = keccak256("test-id");
         uint256 commitment = TestUtils.semaphoreCommitment(12345);
         
-        IBringRegistry.TLSNVerifierMessage memory message = IBringRegistry.TLSNVerifierMessage({
+        ICredentialRegistry.Attestation memory message = ICredentialRegistry.Attestation({
             registry: address(registry),
-            verificationId: verificationId,
+            credentialGroupId: credentialGroupId,
             idHash: idHash,
             semaphoreIdentityCommitment: commitment
         });
@@ -319,17 +319,17 @@ contract BringRegistryTest is Test {
     }
 
     function testValidateProof() public {
-        uint256 verificationId = 1;
-        registry.newVerification(verificationId, 100);
+        uint256 credentialGroupId = 1;
+        registry.createCredentialGroup(credentialGroupId, 100);
         
         uint256 commitmentKey = 12345;
         uint256 commitment = TestUtils.semaphoreCommitment(commitmentKey);
         
         // Add member to group
         bytes32 idHash = keccak256("test-id");
-        IBringRegistry.TLSNVerifierMessage memory message = IBringRegistry.TLSNVerifierMessage({
+        ICredentialRegistry.Attestation memory message = ICredentialRegistry.Attestation({
             registry: address(registry),
-            verificationId: verificationId,
+            credentialGroupId: credentialGroupId,
             idHash: idHash,
             semaphoreIdentityCommitment: commitment
         });
@@ -357,8 +357,8 @@ contract BringRegistryTest is Test {
             uint256[8] memory points
         ) = TestUtils.semaphoreProof(commitmentKey, scope, commitments);
         
-        IBringRegistry.VerificationProof memory proof = IBringRegistry.VerificationProof({
-            verificationId: verificationId,
+        ICredentialRegistry.CredentialGroupProof memory proof = ICredentialRegistry.CredentialGroupProof({
+            credentialGroupId: credentialGroupId,
             semaphoreProof: ISemaphore.SemaphoreProof({
                 merkleTreeDepth: merkleTreeDepth,
                 merkleTreeRoot: merkleTreeRoot,
@@ -370,17 +370,17 @@ contract BringRegistryTest is Test {
         });
         
         vm.expectEmit(true, false, false, false);
-        emit Proved(verificationId);
+        emit ProofValidated(credentialGroupId);
         
         vm.prank(prover);
         registry.validateProof(context, proof);
     }
 
     function testValidateProofInactiveVerification() public {
-        uint256 verificationId = 1;
+        uint256 credentialGroupId = 1;
         
-        IBringRegistry.VerificationProof memory proof = IBringRegistry.VerificationProof({
-            verificationId: verificationId,
+        ICredentialRegistry.CredentialGroupProof memory proof = ICredentialRegistry.CredentialGroupProof({
+            credentialGroupId: credentialGroupId,
             semaphoreProof: ISemaphore.SemaphoreProof({
                 merkleTreeDepth: 0,
                 merkleTreeRoot: 0,
@@ -391,22 +391,22 @@ contract BringRegistryTest is Test {
             })
         });
         
-        vm.expectRevert("Verification is inactive");
+        vm.expectRevert("Credential group is inactive");
         registry.validateProof(0, proof);
     }
 
     function testValidateProofWrongScope() public {
-        uint256 verificationId = 1;
-        registry.newVerification(verificationId, 100);
+        uint256 credentialGroupId = 1;
+        registry.createCredentialGroup(credentialGroupId, 100);
         
         uint256 commitmentKey = 12345;
         uint256 commitment = TestUtils.semaphoreCommitment(commitmentKey);
         
         // Add member to group
         bytes32 idHash = keccak256("test-id");
-        IBringRegistry.TLSNVerifierMessage memory message = IBringRegistry.TLSNVerifierMessage({
+        ICredentialRegistry.Attestation memory message = ICredentialRegistry.Attestation({
             registry: address(registry),
-            verificationId: verificationId,
+            credentialGroupId: credentialGroupId,
             idHash: idHash,
             semaphoreIdentityCommitment: commitment
         });
@@ -434,8 +434,8 @@ contract BringRegistryTest is Test {
             uint256[8] memory points
         ) = TestUtils.semaphoreProof(commitmentKey, wrongScope, commitments);
         
-        IBringRegistry.VerificationProof memory proof = IBringRegistry.VerificationProof({
-            verificationId: verificationId,
+        ICredentialRegistry.CredentialGroupProof memory proof = ICredentialRegistry.CredentialGroupProof({
+            credentialGroupId: credentialGroupId,
             semaphoreProof: ISemaphore.SemaphoreProof({
                 merkleTreeDepth: merkleTreeDepth,
                 merkleTreeRoot: merkleTreeRoot,
@@ -452,17 +452,17 @@ contract BringRegistryTest is Test {
     }
 
     function testVerifyProof() public {
-        uint256 verificationId = 1;
-        registry.newVerification(verificationId, 100);
+        uint256 credentialGroupId = 1;
+        registry.createCredentialGroup(credentialGroupId, 100);
         
         uint256 commitmentKey = 12345;
         uint256 commitment = TestUtils.semaphoreCommitment(commitmentKey);
         
         // Add member to group
         bytes32 idHash = keccak256("test-id");
-        IBringRegistry.TLSNVerifierMessage memory message = IBringRegistry.TLSNVerifierMessage({
+        ICredentialRegistry.Attestation memory message = ICredentialRegistry.Attestation({
             registry: address(registry),
-            verificationId: verificationId,
+            credentialGroupId: credentialGroupId,
             idHash: idHash,
             semaphoreIdentityCommitment: commitment
         });
@@ -488,8 +488,8 @@ contract BringRegistryTest is Test {
             uint256[8] memory points
         ) = TestUtils.semaphoreProof(commitmentKey, scope, commitments);
         
-        IBringRegistry.VerificationProof memory proof = IBringRegistry.VerificationProof({
-            verificationId: verificationId,
+        ICredentialRegistry.CredentialGroupProof memory proof = ICredentialRegistry.CredentialGroupProof({
+            credentialGroupId: credentialGroupId,
             semaphoreProof: ISemaphore.SemaphoreProof({
                 merkleTreeDepth: merkleTreeDepth,
                 merkleTreeRoot: merkleTreeRoot,
@@ -504,13 +504,13 @@ contract BringRegistryTest is Test {
     }
 
     function testScore() public {
-        uint256 verificationId1 = 1;
-        uint256 verificationId2 = 2;
+        uint256 credentialGroupId1 = 1;
+        uint256 credentialGroupId2 = 2;
         uint256 score1 = 100;
         uint256 score2 = 200;
         
-        registry.newVerification(verificationId1, score1);
-        registry.newVerification(verificationId2, score2);
+        registry.createCredentialGroup(credentialGroupId1, score1);
+        registry.createCredentialGroup(credentialGroupId2, score2);
         
         uint256 commitmentKey1 = 12345;
         uint256 commitmentKey2 = 67890;
@@ -519,17 +519,17 @@ contract BringRegistryTest is Test {
         
         // Add members to groups
         bytes32 idHash1 = keccak256("test-id-1");
-        IBringRegistry.TLSNVerifierMessage memory message1 = IBringRegistry.TLSNVerifierMessage({
+        ICredentialRegistry.Attestation memory message1 = ICredentialRegistry.Attestation({
             registry: address(registry),
-            verificationId: verificationId1,
+            credentialGroupId: credentialGroupId1,
             idHash: idHash1,
             semaphoreIdentityCommitment: commitment1
         });
         
         bytes32 idHash2 = keccak256("test-id-2");
-        IBringRegistry.TLSNVerifierMessage memory message2 = IBringRegistry.TLSNVerifierMessage({
+        ICredentialRegistry.Attestation memory message2 = ICredentialRegistry.Attestation({
             registry: address(registry),
-            verificationId: verificationId2,
+            credentialGroupId: credentialGroupId2,
             idHash: idHash2,
             semaphoreIdentityCommitment: commitment2
         });
@@ -572,9 +572,9 @@ contract BringRegistryTest is Test {
             uint256[8] memory points2
         ) = TestUtils.semaphoreProof(commitmentKey2, scope, commitments2);
         
-        IBringRegistry.VerificationProof[] memory proofs = new IBringRegistry.VerificationProof[](2);
-        proofs[0] = IBringRegistry.VerificationProof({
-            verificationId: verificationId1,
+        ICredentialRegistry.CredentialGroupProof[] memory proofs = new ICredentialRegistry.CredentialGroupProof[](2);
+        proofs[0] = ICredentialRegistry.CredentialGroupProof({
+            credentialGroupId: credentialGroupId1,
             semaphoreProof: ISemaphore.SemaphoreProof({
                 merkleTreeDepth: merkleTreeDepth1,
                 merkleTreeRoot: merkleTreeRoot1,
@@ -585,8 +585,8 @@ contract BringRegistryTest is Test {
             })
         });
         
-        proofs[1] = IBringRegistry.VerificationProof({
-            verificationId: verificationId2,
+        proofs[1] = ICredentialRegistry.CredentialGroupProof({
+            credentialGroupId: credentialGroupId2,
             semaphoreProof: ISemaphore.SemaphoreProof({
                 merkleTreeDepth: merkleTreeDepth2,
                 merkleTreeRoot: merkleTreeRoot2,
@@ -602,21 +602,21 @@ contract BringRegistryTest is Test {
     }
 
     function testScoreSkipInactive() public {
-        uint256 verificationId1 = 1;
-        uint256 verificationId2 = 2;
+        uint256 credentialGroupId1 = 1;
+        uint256 credentialGroupId2 = 2;
         uint256 score1 = 100;
         
-        registry.newVerification(verificationId1, score1);
-        // Don't create verificationId2, it will be inactive
+        registry.createCredentialGroup(credentialGroupId1, score1);
+        // Don't create credentialGroupId2, it will be inactive
         
         uint256 commitmentKey1 = 12345;
         uint256 commitment1 = TestUtils.semaphoreCommitment(commitmentKey1);
         
         // Add member to group 1
         bytes32 idHash1 = keccak256("test-id-1");
-        IBringRegistry.TLSNVerifierMessage memory message1 = IBringRegistry.TLSNVerifierMessage({
+        ICredentialRegistry.Attestation memory message1 = ICredentialRegistry.Attestation({
             registry: address(registry),
-            verificationId: verificationId1,
+            credentialGroupId: credentialGroupId1,
             idHash: idHash1,
             semaphoreIdentityCommitment: commitment1
         });
@@ -642,9 +642,9 @@ contract BringRegistryTest is Test {
             uint256[8] memory points1
         ) = TestUtils.semaphoreProof(commitmentKey1, scope, commitments1);
         
-        IBringRegistry.VerificationProof[] memory proofs = new IBringRegistry.VerificationProof[](2);
-        proofs[0] = IBringRegistry.VerificationProof({
-            verificationId: verificationId1,
+        ICredentialRegistry.CredentialGroupProof[] memory proofs = new ICredentialRegistry.CredentialGroupProof[](2);
+        proofs[0] = ICredentialRegistry.CredentialGroupProof({
+            credentialGroupId: credentialGroupId1,
             semaphoreProof: ISemaphore.SemaphoreProof({
                 merkleTreeDepth: merkleTreeDepth1,
                 merkleTreeRoot: merkleTreeRoot1,
@@ -655,8 +655,8 @@ contract BringRegistryTest is Test {
             })
         });
         
-        proofs[1] = IBringRegistry.VerificationProof({
-            verificationId: verificationId2,
+        proofs[1] = ICredentialRegistry.CredentialGroupProof({
+            credentialGroupId: credentialGroupId2,
             semaphoreProof: ISemaphore.SemaphoreProof({
                 merkleTreeDepth: 0,
                 merkleTreeRoot: 0,
@@ -672,21 +672,21 @@ contract BringRegistryTest is Test {
     }
 
     function testScoreFailOnInactive() public {
-        uint256 verificationId1 = 1;
-        uint256 verificationId2 = 2;
+        uint256 credentialGroupId1 = 1;
+        uint256 credentialGroupId2 = 2;
         uint256 score1 = 100;
         
-        registry.newVerification(verificationId1, score1);
-        // Don't create verificationId2, it will be inactive
+        registry.createCredentialGroup(credentialGroupId1, score1);
+        // Don't create credentialGroupId2, it will be inactive
         
         uint256 commitmentKey1 = 12345;
         uint256 commitment1 = TestUtils.semaphoreCommitment(commitmentKey1);
         
         // Add member to group 1
         bytes32 idHash1 = keccak256("test-id-1");
-        IBringRegistry.TLSNVerifierMessage memory message1 = IBringRegistry.TLSNVerifierMessage({
+        ICredentialRegistry.Attestation memory message1 = ICredentialRegistry.Attestation({
             registry: address(registry),
-            verificationId: verificationId1,
+            credentialGroupId: credentialGroupId1,
             idHash: idHash1,
             semaphoreIdentityCommitment: commitment1
         });
@@ -712,9 +712,9 @@ contract BringRegistryTest is Test {
             uint256[8] memory points1
         ) = TestUtils.semaphoreProof(commitmentKey1, scope, commitments1);
         
-        IBringRegistry.VerificationProof[] memory proofs = new IBringRegistry.VerificationProof[](2);
-        proofs[0] = IBringRegistry.VerificationProof({
-            verificationId: verificationId1,
+        ICredentialRegistry.CredentialGroupProof[] memory proofs = new ICredentialRegistry.CredentialGroupProof[](2);
+        proofs[0] = ICredentialRegistry.CredentialGroupProof({
+            credentialGroupId: credentialGroupId1,
             semaphoreProof: ISemaphore.SemaphoreProof({
                 merkleTreeDepth: merkleTreeDepth1,
                 merkleTreeRoot: merkleTreeRoot1,
@@ -725,8 +725,8 @@ contract BringRegistryTest is Test {
             })
         });
         
-        proofs[1] = IBringRegistry.VerificationProof({
-            verificationId: verificationId2,
+        proofs[1] = ICredentialRegistry.CredentialGroupProof({
+            credentialGroupId: credentialGroupId2,
             semaphoreProof: ISemaphore.SemaphoreProof({
                 merkleTreeDepth: 0,
                 merkleTreeRoot: 0,
@@ -737,7 +737,7 @@ contract BringRegistryTest is Test {
             })
         });
         
-        vm.expectRevert("Verification is inactive");
+        vm.expectRevert("Credential group is inactive");
         registry.score(proofs, false);
     }
 }

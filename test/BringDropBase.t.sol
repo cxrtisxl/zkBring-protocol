@@ -3,8 +3,8 @@ pragma solidity ^0.8.23;
 
 import {Test, console} from "forge-std/Test.sol";
 import {BringDropBase} from "../src/drop/BringDropBase.sol";
-import {BringRegistry} from "../src/registry/BringRegistry.sol";
-import {IBringRegistry} from "../src/registry/IBringRegistry.sol";
+import {CredentialRegistry} from "../src/registry/CredentialRegistry.sol";
+import {ICredentialRegistry} from "../src/registry/ICredentialRegistry.sol";
 import {ISemaphore} from "semaphore-protocol/interfaces/ISemaphore.sol";
 import {ISemaphoreVerifier} from "semaphore-protocol/interfaces/ISemaphoreVerifier.sol";
 import {SemaphoreVerifier} from "semaphore-protocol/base/SemaphoreVerifier.sol";
@@ -15,7 +15,7 @@ import {IERC20} from "openzeppelin/token/ERC20/IERC20.sol";
 // Concrete implementation of BringDropBase for testing
 contract TestBringDrop is BringDropBase {
     constructor(
-        IBringRegistry registry_,
+        ICredentialRegistry registry_,
         address creator_,
         IERC20 token_,
         uint256 amount_,
@@ -37,7 +37,7 @@ contract TestBringDrop is BringDropBase {
 
 contract BringDropBaseTest is Test {
     TestBringDrop drop;
-    BringRegistry registry;
+    CredentialRegistry registry;
     Token token;
     Token bringToken;
     
@@ -68,11 +68,11 @@ contract BringDropBaseTest is Test {
         
         // Deploy registry
         address tlsnVerifier = makeAddr("tlsn-verifier");
-        registry = new BringRegistry(ISemaphore(address(semaphore)), tlsnVerifier);
+        registry = new CredentialRegistry(ISemaphore(address(semaphore)), tlsnVerifier);
         
         // Deploy drop
         drop = new TestBringDrop(
-            IBringRegistry(address(registry)),
+            ICredentialRegistry(address(registry)),
             creator,
             IERC20(address(token)),
             AMOUNT,
