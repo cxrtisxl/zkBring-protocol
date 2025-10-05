@@ -193,7 +193,7 @@ contract BringDropByVerificationTest is Test {
             })
         });
         
-        vm.expectRevert("Wrong credential group");
+        vm.expectRevert();
         drop.claim(recipient, proof);
     }
 

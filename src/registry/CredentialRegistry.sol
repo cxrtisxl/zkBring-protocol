@@ -16,6 +16,7 @@ contract CredentialRegistry is ICredentialRegistry, Ownable2Step {
     mapping(bytes32 nullifier => bool isConsumed) private _nonceUsed;
 
     constructor(ISemaphore semaphore_, address TLSNVerifier_) {
+        require(TLSNVerifier_ != address(0), "Invalid TLSN Verifier address");
         SEMAPHORE = semaphore_;
         TLSNVerifier = TLSNVerifier_;
     }
@@ -37,6 +38,7 @@ contract CredentialRegistry is ICredentialRegistry, Ownable2Step {
         Attestation memory attestation_,
         bytes memory signature_
     ) public {
+        require(signature_.length == 65, "Bad signature length");
         bytes32 r; bytes32 s; uint8 v;
         assembly {
             r := mload(add(signature_, 0x20))
@@ -70,8 +72,8 @@ contract CredentialRegistry is ICredentialRegistry, Ownable2Step {
 
         require(signer == TLSNVerifier, "Invalid TLSN Verifier signature");
 
-        SEMAPHORE.addMember(_credentialGroup.semaphoreGroupId, attestation_.semaphoreIdentityCommitment);
         _nonceUsed[nonce] = true;
+        SEMAPHORE.addMember(_credentialGroup.semaphoreGroupId, attestation_.semaphoreIdentityCommitment);
         emit CredentialAdded(attestation_.credentialGroupId, attestation_.semaphoreIdentityCommitment);
     }
 
@@ -92,11 +94,14 @@ contract CredentialRegistry is ICredentialRegistry, Ownable2Step {
         emit ProofValidated(proof_.credentialGroupId);
     }
 
-    // @notice this function doesn't check proofs' nullifiers
+    // @dev score should be used only for the score preview
+    // @notice score doesn't check proofs' nullifiers
+    // @notice score doesn't check duplicate proofs
+    // @notice score reverts if any proof for an active Credential Group is invalid
     function score(
         CredentialGroupProof[] calldata proofs_,
         bool skipInactive_
-    ) public view returns (uint256 _score){
+    ) public view returns (uint256 _score) {
         _score = 0;
         for (uint256 i = 0; i < proofs_.length; i++) {
             CredentialGroup memory _credentialGroup = credentialGroups[proofs_[i].credentialGroupId];
@@ -104,10 +109,12 @@ contract CredentialRegistry is ICredentialRegistry, Ownable2Step {
                 if (skipInactive_) {
                     continue;
                 }
-                // TODO custom error should return the inactive credential group ID
                 revert("Credential group is inactive");
             }
-            _verifyProof(_credentialGroup.semaphoreGroupId, proofs_[i].semaphoreProof);
+            require(
+                _verifyProof(_credentialGroup.semaphoreGroupId, proofs_[i].semaphoreProof),
+                "Invalid proof"
+            );
             _score += _credentialGroup.score;
         }
     }
