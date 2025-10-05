@@ -53,35 +53,19 @@ contract DeployDev is Script {
         // TLSN Verifier private key
         // 0x7FA50A02193219D0625C2831908477D3568E5BEECA9AABE34381506A2431AFDE
         address tlsnVerifierAddress = 0x3c50f7055D804b51e506Bc1EA7D082cB1548376C;
-        uint256 credentialGroupId = 1;
 
         vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
-            SemaphoreVerifier semaphoreVerifier = new SemaphoreVerifier();
-
+            SemaphoreVerifier semaphoreVerifier;
             Semaphore semaphore;
-            if (vm.envAddress('SEMAPHORE_ADDRESS') == address(0)) {
-                semaphore = new Semaphore(ISemaphoreVerifier(address(semaphoreVerifier)));
-            } else {
+            if (vm.envAddress('SEMAPHORE_ADDRESS') != address(0)) {
                 semaphore = Semaphore(vm.envAddress('SEMAPHORE_ADDRESS'));
+            } else {
+                semaphoreVerifier = new SemaphoreVerifier();
+                semaphore = new Semaphore(ISemaphoreVerifier(address(semaphoreVerifier)));
             }
-
             CredentialRegistry registry = new CredentialRegistry(ISemaphore(address(semaphore)), tlsnVerifierAddress);
             Token token = new Token("Testo", "TESTO", msg.sender, 10**32);
             Token bringToken = new Token("Bring", "BRING", msg.sender, 10**32);
-
-            registry.createCredentialGroup(credentialGroupId, 10);
-            BringDropByVerification drop = new BringDropByVerification(
-                credentialGroupId,
-                registry,
-                msg.sender,
-                token,
-                10**19,
-                10**13,
-                block.timestamp * 2,
-                "",
-                bringToken
-            );
-            token.transfer(address(drop), 10**32);
         vm.stopBroadcast();
 
         console.log("Verifier:", address(semaphoreVerifier));
@@ -89,6 +73,26 @@ contract DeployDev is Script {
         console.log("Registry:", address(registry));
         console.log("Mock Token:", address(token));
         console.log("Bring Token:", address(bringToken));
-        console.log("Drop:", address(drop));
+    }
+}
+
+contract Deploy  is Script {
+    function run() public {
+        // TLSN Verifier private key
+        // 0x7FA50A02193219D0625C2831908477D3568E5BEECA9AABE34381506A2431AFDE
+        address tlsnVerifierAddress = 0x3c50f7055D804b51e506Bc1EA7D082cB1548376C;
+
+        vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
+        Semaphore semaphore;
+        if (vm.envAddress('SEMAPHORE_ADDRESS') != address(0)) {
+            semaphore = Semaphore(vm.envAddress('SEMAPHORE_ADDRESS'));
+        } else {
+            revert("SEMAPHORE_ADDRESS should be provided");
+        }
+        CredentialRegistry registry = new CredentialRegistry(ISemaphore(address(semaphore)), tlsnVerifierAddress);
+        vm.stopBroadcast();
+
+        console.log("Semaphore:", address(semaphore));
+        console.log("Registry:", address(registry));
     }
 }

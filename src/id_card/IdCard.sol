@@ -6,6 +6,7 @@ import {ERC721} from "solmate/tokens/ERC721.sol";
 import {Ownable2Step} from "openzeppelin/access/Ownable2Step.sol";
 import {Strings} from "openzeppelin/utils/Strings.sol";
 import {Base64} from "openzeppelin/utils/Base64.sol";
+import {Pausable} from "openzeppelin/security/Pausable.sol";
 
 contract IdCard is ERC721, Ownable2Step {
     using Strings for uint256;
@@ -22,11 +23,6 @@ contract IdCard is ERC721, Ownable2Step {
     ICredentialRegistry public immutable registry;
     mapping (uint256 id => ID) public IDs;
     bool public stopped;
-    
-    // Debug function to expose the array contents
-    function getVerifications(uint256 id) public view returns (uint256[] memory) {
-        return IDs[id].verifications;
-    }
 
     modifier notStopped() {
         require(!stopped, "Campaign stopped");
@@ -37,6 +33,10 @@ contract IdCard is ERC721, Ownable2Step {
         registry = registry_;
         _names[1] = "X account owner";
         _names[2] = "Has Uber rides";
+    }
+
+    function minted(address id) public view returns (bool) {
+        return _toLocalId[id] != 0;
     }
 
     function tokenURI(address id) public view returns (string memory metadata) {
@@ -72,21 +72,24 @@ contract IdCard is ERC721, Ownable2Step {
 
     function claim(
         address to,
-        ICredentialRegistry.CredentialGroupProof calldata proof
+        ICredentialRegistry.CredentialGroupProof[] calldata proofs
     ) public notStopped {
-        registry.validateProof(0, proof);
-        uint256 score = registry.credentialGroupScore(proof.credentialGroupId);
         uint256 id = _toLocalId[to];
-        if (id == 0) {
-            id = _nextId(to);
-            uint256[] memory verifications_ = new uint256[](1);
-            verifications_[0] = proof.credentialGroupId;
-            IDs[id] = ID(score, verifications_);
-            _mint(to, id);
-            return;
+        bool shouldMint = (id == 0);
+        for (uint256 i; i < proofs.length; i++) {
+            registry.validateProof(0, proofs[i]);
+            uint256 score = registry.credentialGroupScore(proofs[i].credentialGroupId);
+            if (id == 0) {
+                id = _nextId(to);
+                uint256[] memory verifications_ = new uint256[](1);
+                verifications_[0] = proofs[i].credentialGroupId;
+                IDs[id] = ID(score, verifications_);
+            } else {
+                IDs[id].score += score;
+                IDs[id].verifications.push(proofs[i].credentialGroupId);
+            }
         }
-        IDs[id].score += score;
-        IDs[id].verifications.push(proof.credentialGroupId);
+        if (shouldMint) _mint(to, id);
     }
 
     function toggleStop() public onlyOwner {
