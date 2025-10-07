@@ -13,7 +13,7 @@ contract CredentialRegistry is ICredentialRegistry, Ownable2Step {
     ISemaphore public immutable SEMAPHORE;
     address public TLSNVerifier;
     mapping(uint256 credentialGroupId => CredentialGroup) public credentialGroups;
-    mapping(bytes32 nullifier => bool isConsumed) private _nonceUsed;
+    mapping(bytes32 nonce => bool isConsumed) public nonceUsed;
 
     constructor(ISemaphore semaphore_, address TLSNVerifier_) {
         require(TLSNVerifier_ != address(0), "Invalid TLSN Verifier address");
@@ -64,7 +64,7 @@ contract CredentialRegistry is ICredentialRegistry, Ownable2Step {
 
         require(_credentialGroup.status == CredentialGroupStatus.ACTIVE, "Credential group is inactive");
         require(attestation_.registry == address(this), "Wrong attestation message");
-        require(!_nonceUsed[nonce], "Nonce is used");
+        require(!nonceUsed[nonce], "Nonce is used");
 
         (address signer,) = keccak256(
             abi.encode(attestation_)
@@ -72,7 +72,7 @@ contract CredentialRegistry is ICredentialRegistry, Ownable2Step {
 
         require(signer == TLSNVerifier, "Invalid TLSN Verifier signature");
 
-        _nonceUsed[nonce] = true;
+        nonceUsed[nonce] = true;
         SEMAPHORE.addMember(_credentialGroup.semaphoreGroupId, attestation_.semaphoreIdentityCommitment);
         emit CredentialAdded(attestation_.credentialGroupId, attestation_.semaphoreIdentityCommitment);
     }
@@ -81,7 +81,7 @@ contract CredentialRegistry is ICredentialRegistry, Ownable2Step {
     // @dev `context_` parameter here is concatenated with sender address
     function validateProof(
         uint256 context_,
-        CredentialGroupProof calldata proof_
+        CredentialGroupProof memory proof_
     ) public {
         CredentialGroup memory _credentialGroup = credentialGroups[proof_.credentialGroupId];
         require(_credentialGroup.status == CredentialGroupStatus.ACTIVE, "Credential group is inactive");
@@ -94,28 +94,16 @@ contract CredentialRegistry is ICredentialRegistry, Ownable2Step {
         emit ProofValidated(proof_.credentialGroupId);
     }
 
-    // @dev score should be used only for the score preview
-    // @notice score doesn't check proofs' nullifiers
-    // @notice score doesn't check duplicate proofs
-    // @notice score reverts if any proof for an active Credential Group is invalid
     function score(
-        CredentialGroupProof[] calldata proofs_,
-        bool skipInactive_
-    ) public view returns (uint256 _score) {
+        uint256 context_,
+        CredentialGroupProof[] calldata proofs_
+    ) public returns (uint256 _score) {
         _score = 0;
+        CredentialGroupProof memory _proof;
         for (uint256 i = 0; i < proofs_.length; i++) {
-            CredentialGroup memory _credentialGroup = credentialGroups[proofs_[i].credentialGroupId];
-            if (_credentialGroup.status != CredentialGroupStatus.ACTIVE) {
-                if (skipInactive_) {
-                    continue;
-                }
-                revert("Credential group is inactive");
-            }
-            require(
-                _verifyProof(_credentialGroup.semaphoreGroupId, proofs_[i].semaphoreProof),
-                "Invalid proof"
-            );
-            _score += _credentialGroup.score;
+            _proof = proofs_[i];
+            _score += credentialGroups[_proof.credentialGroupId].score;
+            validateProof(context_, _proof);
         }
     }
 
@@ -151,7 +139,12 @@ contract CredentialRegistry is ICredentialRegistry, Ownable2Step {
         emit CredentialGroupCreated(credentialGroupId_, _credentialGroup);
     }
 
-    // TODO: Suspend credential group
+    function suspendCredentialGroup(
+        uint256 credentialGroupId_
+    ) public onlyOwner {
+        require(credentialGroups[credentialGroupId_].status == CredentialGroupStatus.ACTIVE, "Credential group is not active");
+        credentialGroups[credentialGroupId_].status = CredentialGroupStatus.SUSPENDED;
+    }
 
     function setVerifier(
         address TLSNVerifier_

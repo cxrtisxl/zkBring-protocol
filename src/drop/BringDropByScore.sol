@@ -38,7 +38,7 @@ contract BringDropByScore is BringDropBase {
         ICredentialRegistry.CredentialGroupProof[] calldata proofs
     ) public notStopped notExpired {
         require(claims < maxClaims, "All claims exhausted");
-        uint256 totalScore = registry.score(proofs, true);
+        uint256 totalScore = registry.score(0, proofs);
         require(totalScore >= scoreThreshold, "Insufficient score");
 
         claims++;

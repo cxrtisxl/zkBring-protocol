@@ -597,7 +597,7 @@ contract CredentialRegistryTest is Test {
             })
         });
         
-        uint256 totalScore = registry.score(proofs, false);
+        uint256 totalScore = registry.score(0, proofs);
         assertEq(totalScore, score1 + score2);
     }
 
@@ -667,7 +667,7 @@ contract CredentialRegistryTest is Test {
             })
         });
         
-        uint256 totalScore = registry.score(proofs, true);
+        uint256 totalScore = registry.score(0, proofs);
         assertEq(totalScore, score1);
     }
 
@@ -738,6 +738,6 @@ contract CredentialRegistryTest is Test {
         });
         
         vm.expectRevert("Credential group is inactive");
-        registry.score(proofs, false);
+        registry.score(0, proofs);
     }
 }
