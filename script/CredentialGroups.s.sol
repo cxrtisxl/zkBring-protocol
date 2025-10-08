@@ -1,16 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import "../src/drop/BringDropByVerification.sol";
-import "../src/drop/BringDropByScore.sol";
-import {ICredentialRegistry} from "../src/registry/ICredentialRegistry.sol";
-import {ISemaphoreVerifier} from "semaphore-protocol/interfaces/ISemaphoreVerifier.sol";
-import {ISemaphore} from "semaphore-protocol/interfaces/ISemaphore.sol";
-import {Script, console} from "forge-std/Script.sol";
-import {SemaphoreVerifier} from "semaphore-protocol/base/SemaphoreVerifier.sol";
-import {Semaphore} from "semaphore-protocol/Semaphore.sol";
-import {Token} from "../src/mock/Token.sol";
 import {CredentialRegistry, ICredentialRegistry} from "../src/registry/CredentialRegistry.sol";
+import {ISemaphore} from "semaphore-protocol/interfaces/ISemaphore.sol";
+import {Semaphore} from "semaphore-protocol/Semaphore.sol";
+import {ERC20} from "openzeppelin/token/ERC20/ERC20.sol";
+import {Script, console} from "forge-std/Script.sol";
 
 contract Register  is Script {
     function run() public {
