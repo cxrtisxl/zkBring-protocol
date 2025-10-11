@@ -1,4 +1,4 @@
-## zkBring Protocol
+## BringID Identity Registry
 
 ## Usage
 
